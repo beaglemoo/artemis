@@ -1518,6 +1518,23 @@ Flickable {
                     }
                 }
 
+                CheckBox {
+                    id: virtualControllerCheck
+                    hoverEnabled: true
+                    width: parent.width
+                    text: qsTr("Show virtual controller overlay")
+                    font.pointSize: 12
+                    checked: StreamingPreferences.enableVirtualController
+                    onCheckedChanged: {
+                        StreamingPreferences.enableVirtualController = checked
+                    }
+
+                    ToolTip.delay: 1000
+                    ToolTip.timeout: 10000
+                    ToolTip.visible: hovered
+                    ToolTip.text: qsTr("Displays an on-screen virtual gamepad controller during streaming. Useful for touch screens or when a physical controller is not available.")
+                }
+
                 Row {
                     spacing: 5
                     width: parent.width

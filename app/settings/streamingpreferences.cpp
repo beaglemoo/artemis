@@ -65,6 +65,9 @@
 #define SER_LOCALCURSOR "localcursor"
 #define SER_MOMENTUMSCROLLING "momentumscrolling"
 
+// Virtual controller settings
+#define SER_VIRTUALCONTROLLER "virtualcontroller"
+
 #define CURRENT_DEFAULT_VER 2
 
 static StreamingPreferences* s_GlobalPrefs;
@@ -192,6 +195,9 @@ void StreamingPreferences::reload()
     mouseSensitivity = settings.value(SER_MOUSESENSITIVITY, 100).toInt();
     enableLocalCursor = settings.value(SER_LOCALCURSOR, false).toBool();
     enableMomentumScrolling = settings.value(SER_MOMENTUMSCROLLING, true).toBool();
+
+    // Virtual controller settings
+    enableVirtualController = settings.value(SER_VIRTUALCONTROLLER, false).toBool();
 
     // Perform default settings updates as required based on last default version
     if (defaultVer < 1) {
@@ -394,6 +400,9 @@ void StreamingPreferences::save()
     settings.setValue(SER_MOUSESENSITIVITY, mouseSensitivity);
     settings.setValue(SER_LOCALCURSOR, enableLocalCursor);
     settings.setValue(SER_MOMENTUMSCROLLING, enableMomentumScrolling);
+
+    // Virtual controller settings
+    settings.setValue(SER_VIRTUALCONTROLLER, enableVirtualController);
 }
 
 int StreamingPreferences::getDefaultBitrate(int width, int height, int fps, bool yuv444)

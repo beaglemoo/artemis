@@ -168,6 +168,9 @@ public:
     Q_PROPERTY(bool enableLocalCursor MEMBER enableLocalCursor NOTIFY enableLocalCursorChanged)
     Q_PROPERTY(bool enableMomentumScrolling MEMBER enableMomentumScrolling NOTIFY enableMomentumScrollingChanged)
 
+    // Virtual controller settings
+    Q_PROPERTY(bool enableVirtualController MEMBER enableVirtualController NOTIFY enableVirtualControllerChanged)
+
     Q_INVOKABLE bool retranslate();
 
     // Directly accessible members for preferences
@@ -223,6 +226,9 @@ public:
     bool enableLocalCursor;
     bool enableMomentumScrolling;
 
+    // Virtual controller settings
+    bool enableVirtualController;
+
 signals:
     void displayModeChanged();
     void bitrateChanged();
@@ -272,6 +278,9 @@ signals:
     void mouseSensitivityChanged();
     void enableLocalCursorChanged();
     void enableMomentumScrollingChanged();
+
+    // Virtual controller signals
+    void enableVirtualControllerChanged();
 
 private:
     explicit StreamingPreferences(QQmlEngine *qmlEngine);
