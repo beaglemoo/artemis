@@ -1855,7 +1855,10 @@ void FFmpegVideoDecoder::decoderThreadProc()
                 else {
                     char errorstring[512];
 
-                    // FIXME: Should we pop an entry off m_FrameInfoQueue here?
+                    // Pop the frame info entry to keep queue synchronized with decoder
+                    if (!m_FrameInfoQueue.isEmpty()) {
+                        m_FrameInfoQueue.dequeue();
+                    }
 
                     av_strerror(err, errorstring, sizeof(errorstring));
                     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,

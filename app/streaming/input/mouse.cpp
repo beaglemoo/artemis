@@ -260,8 +260,8 @@ bool SdlInputHandler::isMouseInVideoRegion(int mouseX, int mouseY, int windowWid
     // Use the stream and window sizes to determine the video region
     StreamUtils::scaleSourceToDestinationSurface(&src, &dst);
 
-    return (mouseX >= dst.x && mouseX <= dst.x + dst.w) &&
-           (mouseY >= dst.y && mouseY <= dst.y + dst.h);
+    return (mouseX >= dst.x && mouseX < dst.x + dst.w) &&
+           (mouseY >= dst.y && mouseY < dst.y + dst.h);
 }
 
 void SdlInputHandler::updatePointerRegionLock()
