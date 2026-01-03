@@ -170,8 +170,14 @@ void QuickMenuManager::showToast(const QString &message) {
         m_ToastWindow->setResizeMode(QQuickView::SizeRootObjectToView);
     }
 
+    QQuickItem* rootObject = m_ToastWindow->rootObject();
+    if (!rootObject) {
+        qWarning() << "QuickMenuManager: Toast root object is null, QML failed to load";
+        return;
+    }
+
     QVariant retVal;
-    QMetaObject::invokeMethod(m_ToastWindow->rootObject(), "showToast",
+    QMetaObject::invokeMethod(rootObject, "showToast",
                               Q_RETURN_ARG(QVariant, retVal),
                               Q_ARG(QVariant, message));
     m_ToastWindow->show();
@@ -249,9 +255,12 @@ void QuickMenuManager::executeServerCommand(const QString &command)
                 auto& overlayManager = Session::get()->getOverlayManager();
                 overlayManager.setOverlayState(Overlay::OverlayServerCommands, true);
                 overlayManager.updateOverlayText(Overlay::OverlayServerCommands, "Server commands not available");
-                
-                QTimer::singleShot(2000, [&overlayManager]() {
-                    overlayManager.setOverlayState(Overlay::OverlayServerCommands, false);
+
+                // Capture 'this' instead of reference to avoid dangling reference
+                QTimer::singleShot(2000, this, [this]() {
+                    if (Session::get()) {
+                        Session::get()->getOverlayManager().setOverlayState(Overlay::OverlayServerCommands, false);
+                    }
                 });
             }
         }

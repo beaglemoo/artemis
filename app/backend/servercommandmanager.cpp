@@ -83,28 +83,34 @@ void ServerCommandManager::refreshCommands()
                  << ", http:" << (m_http != nullptr);
         return;
     }
-    
+
+    // Take local copies of pointers to avoid race conditions
+    NvComputer* computer = m_computer;
+    if (!computer) {
+        return;
+    }
+
     m_refreshInProgress = true;
     bool oldPermission = m_hasPermission;
-    
+
     qDebug() << "ServerCommandManager::refreshCommands: Starting refresh";
-    qDebug() << "ServerCommandManager::refreshCommands: Server commands from computer:" << m_computer->serverCommands;
-    
+    qDebug() << "ServerCommandManager::refreshCommands: Server commands from computer:" << computer->serverCommands;
+
     // Check if server commands are available from serverinfo XML (Android approach)
-    if (!m_computer->serverCommands.isEmpty()) {
+    if (!computer->serverCommands.isEmpty()) {
         qDebug() << "ServerCommandManager::refreshCommands: Found server commands in serverinfo XML";
         m_hasPermission = true;
         m_availableCommands.clear();
         m_commandNames.clear();
         m_commandDescriptions.clear();
-        
+
         // Use the commands from the serverinfo XML
-        for (const QString &cmd : m_computer->serverCommands) {
+        for (const QString &cmd : computer->serverCommands) {
             m_availableCommands.append(cmd);
             m_commandNames[cmd] = cmd; // Use command ID as display name for now
             m_commandDescriptions[cmd] = "Server command: " + cmd;
         }
-        
+
         qDebug() << "ServerCommandManager::refreshCommands: Loaded commands from serverinfo:" << m_availableCommands;
     } else {
         qDebug() << "ServerCommandManager::refreshCommands: No server commands in serverinfo XML, trying separate endpoint";
