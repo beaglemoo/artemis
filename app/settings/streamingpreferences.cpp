@@ -197,6 +197,15 @@ void StreamingPreferences::reload()
     // Virtual controller settings
     enableVirtualController = settings.value(SER_VIRTUALCONTROLLER, false).toBool();
 
+    // Validate numeric settings to prevent corrupted config issues
+    width = qBound(640, width, 7680);
+    height = qBound(360, height, 4320);
+    fps = qBound(10, fps, 240);
+    bitrateKbps = qBound(500, bitrateKbps, 500000);
+    mouseSensitivity = qBound(1, mouseSensitivity, 1000);
+    resolutionScaleFactor = qBound(25, resolutionScaleFactor, 400);
+    customRefreshRate = qBound(1.0, customRefreshRate, 500.0);
+
     // Perform default settings updates as required based on last default version
     if (defaultVer < 1) {
 #ifdef Q_OS_DARWIN
