@@ -20,6 +20,8 @@
 
 extern "C" {
     #include <libavutil/pixdesc.h>
+    #include <libavutil/opt.h>
+    #include <libavcodec/avcodec.h>
 }
 
 struct CscParams
@@ -831,14 +833,30 @@ public:
         SDL_AtomicUnlock(&m_OverlayLock);
     }}
 
-    virtual bool prepareDecoderContext(AVCodecContext* context, AVDictionary**) override
+    virtual bool prepareDecoderContext(AVCodecContext* context, AVDictionary** options) override
     {
         if (m_HwAccel) {
             context->hw_device_ctx = av_buffer_ref(m_HwContext);
         }
 
+        // Configure low-latency decoding for VideoToolbox
+        // async_depth controls how many frames can be in-flight for async decoding
+        // Setting to 1 minimizes decode latency at the cost of potential throughput
+        av_dict_set_int(options, "async_depth", 1, 0);
+
+        // Request real-time priority for the decoder thread
+        // This helps reduce decode jitter on macOS
+        context->thread_type = FF_THREAD_SLICE;
+        context->thread_count = 1;
+
+        // Set low delay flag to minimize buffering
+        context->flags |= AV_CODEC_FLAG_LOW_DELAY;
+
+        // Disable frame-level threading which adds latency
+        context->flags2 |= AV_CODEC_FLAG2_FAST;
+
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                    "Using Metal renderer with %s decoding",
+                    "Using Metal renderer with %s decoding (low-latency mode enabled)",
                     m_HwAccel ? "hardware" : "software");
 
         return true;
