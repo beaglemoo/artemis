@@ -118,6 +118,8 @@ void VirtualControllerManager::createOverlay()
 
         if (m_overlayView->status() == QQuickView::Error) {
             qWarning() << "VirtualControllerManager: Error loading QML:" << m_overlayView->errors();
+            delete m_overlayView;
+            m_overlayView = nullptr;
             return;
         }
 
@@ -185,6 +187,10 @@ void VirtualControllerManager::onButtonReleased(int button)
 
 void VirtualControllerManager::onStickMoved(int stick, float x, float y)
 {
+    // Clamp values to valid range before conversion
+    x = qBound(-1.0f, x, 1.0f);
+    y = qBound(-1.0f, y, 1.0f);
+
     // Convert -1.0 to 1.0 range to -32768 to 32767
     short stickX = (short)(x * 32767);
     short stickY = (short)(y * 32767);
