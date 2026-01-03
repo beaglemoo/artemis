@@ -202,6 +202,13 @@ void StreamingPreferences::reload()
     enableVirtualController = settings.value(SER_VIRTUALCONTROLLER, false).toBool();
 
     // Validate numeric settings to prevent corrupted config issues
+    // Bounds explanation:
+    // - Resolution: 640x360 (minimum usable) to 7680x4320 (8K UHD)
+    // - FPS: 10 (minimum playable) to 240 (high refresh rate monitors)
+    // - Bitrate: 500 Kbps (minimum) to 500 Mbps (8K HDR streaming)
+    // - Mouse sensitivity: 1% to 1000% (10x multiplier)
+    // - Resolution scale: 25% to 400% (quarter to quadruple)
+    // - Refresh rate: 1 Hz to 500 Hz (covers all known displays)
     width = qBound(640, width, 7680);
     height = qBound(360, height, 4320);
     fps = qBound(10, fps, 240);

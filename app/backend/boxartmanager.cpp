@@ -1,4 +1,5 @@
 #include "boxartmanager.h"
+#include "nvhttp.h"
 #include "../path.h"
 
 #include <QImageReader>
@@ -112,7 +113,13 @@ QUrl BoxArtManager::loadBoxArtFromNetwork(NvComputer* computer, int appId)
     QImage image;
     try {
         image = http.getBoxArt(appId);
-    } catch (...) {}
+    } catch (const GfeHttpResponseException& e) {
+        // HTTP error (e.g., 404 for missing box art) - not critical
+        qDebug() << "Failed to fetch box art for app" << appId << ":" << e.toQString();
+    } catch (const QtNetworkReplyException& e) {
+        // Network error (e.g., timeout) - not critical
+        qDebug() << "Network error fetching box art for app" << appId << ":" << e.toQString();
+    }
 
     // Cache the box art on disk if it loaded
     if (!image.isNull()) {
