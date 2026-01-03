@@ -874,20 +874,19 @@ public:
             return;
         }
 
-        SDL_AtomicLock(&m_OverlayLock);
-        auto oldTexture = m_OverlayTextures[type];
-        m_OverlayTextures[type] = nullptr;
-        SDL_AtomicUnlock(&m_OverlayLock);
-
-        [oldTexture release];
-
-        // If the overlay is disabled, we're done
+        // If the overlay is disabled, clear the texture atomically
         if (!overlayEnabled) {
+            SDL_AtomicLock(&m_OverlayLock);
+            auto oldTexture = m_OverlayTextures[type];
+            m_OverlayTextures[type] = nullptr;
+            SDL_AtomicUnlock(&m_OverlayLock);
+
+            [oldTexture release];
             SDL_FreeSurface(newSurface);
             return;
         }
 
-        // Create a texture to hold our pixel data
+        // Create a texture to hold our pixel data BEFORE acquiring lock
         SDL_assert(!SDL_MUSTLOCK(newSurface));
         SDL_assert(newSurface->format->format == SDL_PIXELFORMAT_ARGB8888);
         auto texDesc = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatBGRA8Unorm
@@ -909,9 +908,14 @@ public:
         SDL_FreeSurface(newSurface);
         newSurface = nullptr;
 
+        // Atomically swap old and new textures
         SDL_AtomicLock(&m_OverlayLock);
+        auto oldTexture = m_OverlayTextures[type];
         m_OverlayTextures[type] = newTexture;
         SDL_AtomicUnlock(&m_OverlayLock);
+
+        // Release old texture after swap
+        [oldTexture release];
     }}
 
     virtual bool prepareDecoderContext(AVCodecContext* context, AVDictionary** options) override
