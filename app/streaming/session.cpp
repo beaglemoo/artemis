@@ -1962,6 +1962,14 @@ void Session::execInternal()
         return;
     }
 
+#ifdef Q_OS_DARWIN
+    // Game Mode is enabled via Info.plist keys: GCSupportsGameMode and LSSupportsGameMode
+    // On macOS 14+ (Sonoma), the OS will automatically activate Game Mode when streaming,
+    // prioritizing GPU/CPU for the app and reducing Bluetooth controller latency
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                "macOS Game Mode configured via Info.plist (active on macOS 14+)");
+#endif
+
     int x, y, width, height;
     getWindowDimensions(x, y, width, height);
 
