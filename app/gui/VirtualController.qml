@@ -19,18 +19,18 @@ Item {
     signal stickMoved(int stick, real x, real y)
 
     // Button constants matching Limelight.h
-    readonly property int BTN_A: 0x1000
-    readonly property int BTN_B: 0x2000
-    readonly property int BTN_X: 0x4000
-    readonly property int BTN_Y: 0x8000
-    readonly property int BTN_UP: 0x0001
-    readonly property int BTN_DOWN: 0x0002
-    readonly property int BTN_LEFT: 0x0004
-    readonly property int BTN_RIGHT: 0x0008
-    readonly property int BTN_START: 0x0010
-    readonly property int BTN_BACK: 0x0020
-    readonly property int BTN_LB: 0x0100
-    readonly property int BTN_RB: 0x0200
+    readonly property int btnA: 0x1000
+    readonly property int btnB: 0x2000
+    readonly property int btnX: 0x4000
+    readonly property int btnY: 0x8000
+    readonly property int btnUp: 0x0001
+    readonly property int btnDown: 0x0002
+    readonly property int btnLeft: 0x0004
+    readonly property int btnRight: 0x0008
+    readonly property int btnStart: 0x0010
+    readonly property int btnBack: 0x0020
+    readonly property int btnLB: 0x0100
+    readonly property int btnRB: 0x0200
 
     // Left side - D-Pad
     Item {
@@ -48,7 +48,7 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
             text: "\u25B2"
-            onPressedChanged: pressed ? buttonPressed(BTN_UP) : buttonReleased(BTN_UP)
+            onPressedChanged: pressed ? buttonPressed(btnUp) : buttonReleased(btnUp)
         }
 
         // D-Pad Down
@@ -58,7 +58,7 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
             text: "\u25BC"
-            onPressedChanged: pressed ? buttonPressed(BTN_DOWN) : buttonReleased(BTN_DOWN)
+            onPressedChanged: pressed ? buttonPressed(btnDown) : buttonReleased(btnDown)
         }
 
         // D-Pad Left
@@ -68,7 +68,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: parent.left
             text: "\u25C0"
-            onPressedChanged: pressed ? buttonPressed(BTN_LEFT) : buttonReleased(BTN_LEFT)
+            onPressedChanged: pressed ? buttonPressed(btnLeft) : buttonReleased(btnLeft)
         }
 
         // D-Pad Right
@@ -78,7 +78,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             anchors.right: parent.right
             text: "\u25B6"
-            onPressedChanged: pressed ? buttonPressed(BTN_RIGHT) : buttonReleased(BTN_RIGHT)
+            onPressedChanged: pressed ? buttonPressed(btnRight) : buttonReleased(btnRight)
         }
     }
 
@@ -90,7 +90,7 @@ Item {
         anchors.top: parent.top
         anchors.margins: 20
         text: "LB"
-        onPressedChanged: pressed ? buttonPressed(BTN_LB) : buttonReleased(BTN_LB)
+        onPressedChanged: pressed ? buttonPressed(btnLB) : buttonReleased(btnLB)
     }
 
     // Right side - Face buttons (A, B, X, Y)
@@ -110,7 +110,7 @@ Item {
             anchors.top: parent.top
             text: "Y"
             color: "#FFD700"
-            onPressedChanged: pressed ? buttonPressed(BTN_Y) : buttonReleased(BTN_Y)
+            onPressedChanged: pressed ? buttonPressed(btnY) : buttonReleased(btnY)
         }
 
         // A button (bottom)
@@ -121,7 +121,7 @@ Item {
             anchors.bottom: parent.bottom
             text: "A"
             color: "#00FF00"
-            onPressedChanged: pressed ? buttonPressed(BTN_A) : buttonReleased(BTN_A)
+            onPressedChanged: pressed ? buttonPressed(btnA) : buttonReleased(btnA)
         }
 
         // X button (left)
@@ -132,7 +132,7 @@ Item {
             anchors.left: parent.left
             text: "X"
             color: "#0080FF"
-            onPressedChanged: pressed ? buttonPressed(BTN_X) : buttonReleased(BTN_X)
+            onPressedChanged: pressed ? buttonPressed(btnX) : buttonReleased(btnX)
         }
 
         // B button (right)
@@ -143,7 +143,7 @@ Item {
             anchors.right: parent.right
             text: "B"
             color: "#FF0000"
-            onPressedChanged: pressed ? buttonPressed(BTN_B) : buttonReleased(BTN_B)
+            onPressedChanged: pressed ? buttonPressed(btnB) : buttonReleased(btnB)
         }
     }
 
@@ -155,7 +155,7 @@ Item {
         anchors.top: parent.top
         anchors.margins: 20
         text: "RB"
-        onPressedChanged: pressed ? buttonPressed(BTN_RB) : buttonReleased(BTN_RB)
+        onPressedChanged: pressed ? buttonPressed(btnRB) : buttonReleased(btnRB)
     }
 
     // Center buttons (Start and Back)
@@ -169,14 +169,14 @@ Item {
             width: buttonSize * 1.2
             height: buttonSize * 0.7
             text: "Back"
-            onPressedChanged: pressed ? buttonPressed(BTN_BACK) : buttonReleased(BTN_BACK)
+            onPressedChanged: pressed ? buttonPressed(btnBACK) : buttonReleased(btnBACK)
         }
 
         VirtualButton {
             width: buttonSize * 1.2
             height: buttonSize * 0.7
             text: "Start"
-            onPressedChanged: pressed ? buttonPressed(BTN_START) : buttonReleased(BTN_START)
+            onPressedChanged: pressed ? buttonPressed(btnStart) : buttonReleased(btnStart)
         }
     }
 
