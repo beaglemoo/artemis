@@ -524,6 +524,8 @@ public:
     { @autoreleasepool {
         // Handle changes to the frame's colorspace from last time we rendered
         if (!updateColorSpaceForFrame(frame)) {
+            // Release the drawable before triggering reset to prevent leak
+            discardNextDrawable();
             // Trigger the main thread to recreate the decoder
             SDL_Event event;
             event.type = SDL_RENDER_DEVICE_RESET;
@@ -533,6 +535,8 @@ public:
 
         // Handle changes to the video size or drawable size
         if (!updateVideoRegionSizeForFrame(frame)) {
+            // Release the drawable before triggering reset to prevent leak
+            discardNextDrawable();
             // Trigger the main thread to recreate the decoder
             SDL_Event event;
             event.type = SDL_RENDER_DEVICE_RESET;

@@ -161,13 +161,14 @@ Uint32 SdlInputHandler::mouseEmulationTimerCallback(Uint32 interval, void *param
     int rawY;
 
     // Determine which analog stick is currently receiving the strongest input
+    // Protect against overflow when negating -32768 (which can't be represented as positive short)
     if (abs(gamepad->lsX) + abs(gamepad->lsY) > abs(gamepad->rsX) + abs(gamepad->rsY)) {
         rawX = gamepad->lsX;
-        rawY = -gamepad->lsY;
+        rawY = (gamepad->lsY == -32768) ? 32767 : -gamepad->lsY;
     }
     else {
         rawX = gamepad->rsX;
-        rawY = -gamepad->rsY;
+        rawY = (gamepad->rsY == -32768) ? 32767 : -gamepad->rsY;
     }
 
     float deltaX;

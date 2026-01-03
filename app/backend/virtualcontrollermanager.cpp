@@ -206,6 +206,26 @@ void VirtualControllerManager::onStickMoved(int stick, qreal x, qreal y)
     sendControllerState();
 }
 
+void VirtualControllerManager::onTriggerMoved(int trigger, qreal value)
+{
+    // Clamp value to valid range before conversion
+    value = qBound(0.0, value, 1.0);
+
+    // Convert 0.0-1.0 range to 0-255
+    unsigned char triggerValue = (unsigned char)(value * 255);
+
+    if (trigger == 0) { // Left trigger
+        m_leftTrigger = triggerValue;
+    } else if (trigger == 1) { // Right trigger
+        m_rightTrigger = triggerValue;
+    } else {
+        qWarning() << "Invalid trigger index:" << trigger;
+        return;
+    }
+
+    sendControllerState();
+}
+
 void VirtualControllerManager::sendControllerState()
 {
     // Send the controller state via Limelight API

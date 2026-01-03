@@ -44,6 +44,7 @@ public slots:
     void onButtonPressed(int button);
     void onButtonReleased(int button);
     void onStickMoved(int stick, qreal x, qreal y);
+    void onTriggerMoved(int trigger, qreal value);  // 0=left, 1=right, value 0.0-1.0
 
 signals:
     void visibilityChanged();

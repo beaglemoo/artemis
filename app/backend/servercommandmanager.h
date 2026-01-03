@@ -6,6 +6,7 @@
 #include <QJsonObject>
 #include <QTimer>
 #include <QMutex>
+#include <atomic>
 #include "nvcomputer.h"
 
 class NvHTTP;
@@ -111,7 +112,7 @@ private:
     NvHTTP *m_http;
     
     bool m_hasPermission;
-    bool m_isExecuting;
+    std::atomic<bool> m_isExecuting;
     QStringList m_availableCommands;
     QHash<QString, QString> m_commandNames;
     QHash<QString, QString> m_commandDescriptions;
