@@ -169,7 +169,7 @@ Item {
             width: buttonSize * 1.2
             height: buttonSize * 0.7
             text: "Back"
-            onPressedChanged: pressed ? buttonPressed(btnBACK) : buttonReleased(btnBACK)
+            onPressedChanged: pressed ? buttonPressed(btnBack) : buttonReleased(btnBack)
         }
 
         VirtualButton {
