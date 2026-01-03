@@ -110,6 +110,12 @@ void VirtualControllerManager::createOverlay()
 
         // Set up the QML context
         QQmlContext *context = m_overlayView->rootContext();
+        if (!context) {
+            qWarning() << "VirtualControllerManager: Failed to get QML context";
+            delete m_overlayView;
+            m_overlayView = nullptr;
+            return;
+        }
         context->setContextProperty("virtualControllerManager", this);
 
         // Load the QML file
@@ -187,6 +193,12 @@ void VirtualControllerManager::onButtonReleased(int button)
 
 void VirtualControllerManager::onStickMoved(int stick, qreal x, qreal y)
 {
+    // Validate stick index
+    if (stick < 0 || stick > 1) {
+        qWarning() << "Invalid stick index:" << stick;
+        return;
+    }
+
     // Clamp values to valid range before conversion
     x = qBound(-1.0, x, 1.0);
     y = qBound(-1.0, y, 1.0);
