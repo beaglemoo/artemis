@@ -80,6 +80,8 @@ StreamingPreferences::StreamingPreferences(QQmlEngine *qmlEngine)
 
 StreamingPreferences* StreamingPreferences::get(QQmlEngine *qmlEngine)
 {
+    // Double-checked locking pattern for thread-safe singleton initialization.
+    // First check with read lock (fast path for common case when already initialized).
     {
         QReadLocker readGuard(&s_GlobalPrefsLock);
 
@@ -92,6 +94,8 @@ StreamingPreferences* StreamingPreferences::get(QQmlEngine *qmlEngine)
         }
     }
 
+    // Second check with write lock (handles race where another thread created
+    // the singleton while we were waiting to acquire the write lock).
     {
         QWriteLocker writeGuard(&s_GlobalPrefsLock);
 

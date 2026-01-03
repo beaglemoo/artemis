@@ -33,6 +33,14 @@ CenteredGridView {
         currentIndex = -1
     }
 
+    Component.onDestruction: {
+        // Ensure signal is disconnected even if component is destroyed
+        // without going through the deactivation path
+        if (appModel) {
+            appModel.computerLost.disconnect(computerLost)
+        }
+    }
+
     StackView.onActivated: {
         appModel.computerLost.connect(computerLost)
         activated = true
@@ -223,11 +231,19 @@ CenteredGridView {
             }
 
             var component = Qt.createComponent("StreamSegue.qml")
+            if (component.status !== Component.Ready) {
+                console.error("AppView: Failed to load StreamSegue component:", component.errorString())
+                return
+            }
             var segue = component.createObject(stackView, {
                                                    "appName": model.name,
                                                    "session": appModel.createSessionForApp(index),
                                                    "isResume": runningId === model.appid
                                                })
+            if (!segue) {
+                console.error("AppView: Failed to create StreamSegue instance")
+                return
+            }
             stackView.push(segue)
         }
 
@@ -363,6 +379,10 @@ CenteredGridView {
 
         function quitApp() {
             var component = Qt.createComponent("QuitSegue.qml")
+            if (component.status !== Component.Ready) {
+                console.error("AppView: Failed to load QuitSegue component:", component.errorString())
+                return
+            }
             var params = {"appName": appName, "quitRunningAppFn": function() { appModel.quitRunningApp() }}
             if (segueToStream) {
                 // Store the session and app name if we're going to stream after
@@ -375,7 +395,12 @@ CenteredGridView {
                 params.nextSession = null
             }
 
-            stackView.push(component.createObject(stackView, params))
+            var segue = component.createObject(stackView, params)
+            if (!segue) {
+                console.error("AppView: Failed to create QuitSegue instance")
+                return
+            }
+            stackView.push(segue)
         }
 
         onAccepted: quitApp()

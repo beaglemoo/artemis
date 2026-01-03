@@ -183,6 +183,8 @@ void ServerCommandManager::executeCommand(const QString &commandId)
 
 void ServerCommandManager::executeCustomCommand(const QString &command)
 {
+    QMutexLocker locker(&m_mutex);
+
     if (command.isEmpty()) {
         emit commandFailed("custom", "Empty command");
         return;
@@ -197,7 +199,7 @@ void ServerCommandManager::executeCustomCommand(const QString &command)
         emit commandFailed("custom", "Another command is already executing");
         return;
     }
-    
+
     m_isExecuting = true;
     m_currentExecutingCommand = "custom";
     emit executionStateChanged();
@@ -216,26 +218,31 @@ void ServerCommandManager::executeCustomCommand(const QString &command)
 
 QStringList ServerCommandManager::getAvailableCommands() const
 {
+    QMutexLocker locker(&m_mutex);
     return m_availableCommands;
 }
 
 QString ServerCommandManager::getCommandName(const QString &commandId) const
 {
+    QMutexLocker locker(&m_mutex);
     return m_commandNames.value(commandId, commandId);
 }
 
 QString ServerCommandManager::getCommandDescription(const QString &commandId) const
 {
+    QMutexLocker locker(&m_mutex);
     return m_commandDescriptions.value(commandId, "No description available");
 }
 
 bool ServerCommandManager::isApolloServer() const
 {
+    QMutexLocker locker(&m_mutex);
+
     if (!m_computer) {
         qDebug() << "ServerCommandManager::isApolloServer: No computer object";
         return false;
     }
-    
+
     // Simplified Apollo detection - always return true and let HTTP calls fail naturally
     // This matches the approach used in ClipboardManager for better reliability
     qDebug() << "ServerCommandManager::isApolloServer: Assuming Apollo server (simplified detection)";

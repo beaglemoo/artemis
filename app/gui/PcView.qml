@@ -70,15 +70,23 @@ CenteredGridView {
             
             if (targetIndex >= 0) {
                 console.log("PcView: Creating AppView for computer index:", targetIndex)
-                
+
                 // Navigate to the AppView for the newly paired computer
                 var component = Qt.createComponent("AppView.qml")
+                if (component.status !== Component.Ready) {
+                    console.error("PcView: Failed to load AppView component:", component.errorString())
+                    return
+                }
                 var appView = component.createObject(stackView, {
-                    "computerIndex": targetIndex, 
+                    "computerIndex": targetIndex,
                     "objectName": computerModel.data(computerModel.index(targetIndex, 0), ComputerModel.NameRole) || "Computer"
                 })
+                if (!appView) {
+                    console.error("PcView: Failed to create AppView instance")
+                    return
+                }
                 stackView.push(appView)
-                
+
                 console.log("PcView: Navigation completed")
             } else {
                 console.log("PcView: No valid target index, cannot navigate")
@@ -202,7 +210,15 @@ CenteredGridView {
                     text: qsTr("View All Apps")
                     onTriggered: {
                         var component = Qt.createComponent("AppView.qml")
+                        if (component.status !== Component.Ready) {
+                            console.error("PcView: Failed to load AppView component:", component.errorString())
+                            return
+                        }
                         var appView = component.createObject(stackView, {"computerIndex": index, "objectName": model.name, "showHiddenGames": true})
+                        if (!appView) {
+                            console.error("PcView: Failed to create AppView instance")
+                            return
+                        }
                         stackView.push(appView)
                     }
                     visible: model.online && model.paired
@@ -283,7 +299,15 @@ CenteredGridView {
                 else if (model.paired) {
                     // go to game view
                     var component = Qt.createComponent("AppView.qml")
+                    if (component.status !== Component.Ready) {
+                        console.error("PcView: Failed to load AppView component:", component.errorString())
+                        return
+                    }
                     var appView = component.createObject(stackView, {"computerIndex": index, "objectName": model.name})
+                    if (!appView) {
+                        console.error("PcView: Failed to create AppView instance")
+                        return
+                    }
                     stackView.push(appView)
                 }
                 else {
