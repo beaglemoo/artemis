@@ -219,10 +219,11 @@ void SdlInputHandler::handleControllerAxisEvent(SDL_ControllerAxisEvent* event)
                 state->rsY = -qMax(event->value, (short)-32767);
                 break;
             case SDL_CONTROLLER_AXIS_TRIGGERLEFT:
-                state->lt = (unsigned char)(event->value * 255UL / 32767);
+                // Triggers are 0-32767 on SDL, clamp to ensure valid range
+                state->lt = (unsigned char)(qMax((short)0, event->value) * 255UL / 32767);
                 break;
             case SDL_CONTROLLER_AXIS_TRIGGERRIGHT:
-                state->rt = (unsigned char)(event->value * 255UL / 32767);
+                state->rt = (unsigned char)(qMax((short)0, event->value) * 255UL / 32767);
                 break;
             default:
                 SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
@@ -883,7 +884,8 @@ void SdlInputHandler::setMotionEventState(uint16_t controllerNumber, uint8_t mot
 
 #if SDL_VERSION_ATLEAST(2, 0, 14)
     if (m_GamepadState[controllerNumber].controller != nullptr) {
-        uint8_t reportPeriodMs = reportRateHz ? (1000 / reportRateHz) : 0;
+        // Calculate report period, clamping reportRateHz to valid range to avoid division issues
+        uint8_t reportPeriodMs = (reportRateHz > 0 && reportRateHz <= 1000) ? (uint8_t)(1000 / reportRateHz) : 0;
 
         switch (motionType) {
         case LI_MOTION_TYPE_ACCEL:
