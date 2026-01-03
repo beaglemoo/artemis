@@ -22,6 +22,80 @@ ApplicationWindow {
     width: 1280
     height: 600
 
+    // Native macOS Menu Bar
+    menuBar: MenuBar {
+        Menu {
+            title: qsTr("&File")
+            MenuItem {
+                text: qsTr("&Add PC...")
+                enabled: qmltypeof(stackView.currentItem, "PcView")
+                onTriggered: addPcDialog.open()
+            }
+            MenuSeparator { }
+            MenuItem {
+                text: qsTr("&Quit Artemis")
+                onTriggered: Qt.quit()
+            }
+        }
+        Menu {
+            title: qsTr("&View")
+            MenuItem {
+                text: qsTr("&Settings")
+                onTriggered: navigateTo("qrc:/gui/SettingsView.qml", "SettingsView")
+            }
+            MenuSeparator { }
+            MenuItem {
+                text: qsTr("&Back")
+                enabled: stackView.depth > 1
+                onTriggered: goBack()
+            }
+            MenuItem {
+                text: qsTr("&Refresh")
+                enabled: qmltypeof(stackView.currentItem, "PcView")
+                onTriggered: ComputerManager.startPolling()
+            }
+        }
+        Menu {
+            title: qsTr("&Window")
+            MenuItem {
+                text: qsTr("&Minimize")
+                onTriggered: window.showMinimized()
+            }
+            MenuItem {
+                text: qsTr("&Zoom")
+                onTriggered: {
+                    if (window.visibility === Window.Maximized) {
+                        window.showNormal()
+                    } else {
+                        window.showMaximized()
+                    }
+                }
+            }
+            MenuSeparator { }
+            MenuItem {
+                text: qsTr("Enter &Full Screen")
+                onTriggered: {
+                    if (window.visibility === Window.FullScreen) {
+                        window.showNormal()
+                    } else {
+                        window.showFullScreen()
+                    }
+                }
+            }
+        }
+        Menu {
+            title: qsTr("&Help")
+            MenuItem {
+                text: qsTr("Artemis &Help")
+                onTriggered: Qt.openUrlExternally("https://github.com/wjbeckett/artemis/wiki/Setup-Guide")
+            }
+            MenuItem {
+                text: qsTr("&Report an Issue...")
+                onTriggered: Qt.openUrlExternally("https://github.com/wjbeckett/artemis/issues")
+            }
+        }
+    }
+
     // This function runs prior to creation of the initial StackView item
     function doEarlyInit() {
         // Override the background color to Material 2 colors for Qt 6.5+
