@@ -545,7 +545,7 @@ public:
             return;
         }
 
-        std::array<CVMetalTextureRef, MAX_VIDEO_PLANES> cvMetalTextures;
+        std::array<CVMetalTextureRef, MAX_VIDEO_PLANES> cvMetalTextures = {};  // Zero-init to prevent CFRelease on garbage
         size_t planes = getFramePlaneCount(frame);
         SDL_assert(planes <= MAX_VIDEO_PLANES);
 
@@ -599,7 +599,15 @@ public:
         renderPassDescriptor.colorAttachments[0].clearColor = MTLClearColorMake(0.0, 0.0, 0.0, 0.0);
         renderPassDescriptor.colorAttachments[0].storeAction = MTLStoreActionStore;
         auto commandBuffer = [m_CommandQueue commandBuffer];
+        if (!commandBuffer) {
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create Metal command buffer");
+            return;
+        }
         auto renderEncoder = [commandBuffer renderCommandEncoderWithDescriptor:renderPassDescriptor];
+        if (!renderEncoder) {
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to create Metal render encoder");
+            return;
+        }
 
         // Bind textures and buffers then draw the video region
         [renderEncoder setRenderPipelineState:m_VideoPipelineState];
@@ -616,7 +624,13 @@ public:
         }
         else {
             for (size_t i = 0; i < planes; i++) {
-                [renderEncoder setFragmentTexture:mapPlaneForSoftwareFrame(frame, i) atIndex:i];
+                id<MTLTexture> planeTexture = mapPlaneForSoftwareFrame(frame, i);
+                if (!planeTexture) {
+                    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "Failed to map plane %zu for software frame", i);
+                    [renderEncoder endEncoding];
+                    return;
+                }
+                [renderEncoder setFragmentTexture:planeTexture atIndex:i];
             }
         }
         [renderEncoder setFragmentBuffer:m_CscParamsBuffer offset:0 atIndex:0];

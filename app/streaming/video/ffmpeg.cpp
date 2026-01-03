@@ -1854,9 +1854,12 @@ void FFmpegVideoDecoder::decoderThreadProc()
                 }
                 else {
                     char errorstring[512];
+                    int failedFrameNumber = -1;
 
                     // Pop the frame info entry to keep queue synchronized with decoder
+                    // Store frame number before dequeuing to avoid TOCTOU race
                     if (!m_FrameInfoQueue.isEmpty()) {
+                        failedFrameNumber = m_FrameInfoQueue.head().frameNumber;
                         m_FrameInfoQueue.dequeue();
                     }
 
@@ -1864,7 +1867,7 @@ void FFmpegVideoDecoder::decoderThreadProc()
                     SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                                 "avcodec_receive_frame() failed: %s (frame %d)",
                                 errorstring,
-                                !m_FrameInfoQueue.isEmpty() ? m_FrameInfoQueue.head().frameNumber : -1);
+                                failedFrameNumber);
 
                     if (++m_ConsecutiveFailedDecodes == FAILED_DECODES_RESET_THRESHOLD) {
                         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,

@@ -182,9 +182,10 @@ Rectangle {
         }
     }
 
-    // ServerCommandManager connection
+    // ServerCommandManager connection - safe null handling
     Connections {
-        target: quickMenuManager.serverCommandManager
+        target: quickMenuManager && quickMenuManager.serverCommandManager ? quickMenuManager.serverCommandManager : null
+        enabled: target !== null
         function onCommandsRefreshed() {
             console.log("Server commands refreshed, updating model...");
             serverCommandsModel.clear();
@@ -277,8 +278,8 @@ Rectangle {
     // Functions
     function closeMenu() {
         // Only call backend hide - don't set QML invisible
-            if (typeof quickMenuManager !== 'undefined') {
-                showActionFeedback("Closing menu...")  // Feedback when closing
+        if (quickMenuManager) {  // Proper null/undefined check
+            showActionFeedback("Closing menu...")  // Feedback when closing
             quickMenuManager.hide();
         }
     }

@@ -335,16 +335,22 @@ void QuickMenuManager::toggleFullscreen()
 void QuickMenuManager::setServerCommandManager(ServerCommandManager *manager)
 {
     if (m_serverCommandManager) {
-        QObject::disconnect(m_serverCommandManager, nullptr, this, nullptr);
+        // Only disconnect our specific connections, not all signals
+        disconnect(m_serverCommandManager, &ServerCommandManager::permissionChanged,
+                   this, &QuickMenuManager::onServerCommandsChanged);
+        disconnect(m_serverCommandManager, &ServerCommandManager::commandsRefreshed,
+                   this, &QuickMenuManager::onServerCommandsChanged);
     }
-    
+
     m_serverCommandManager = manager;
-    
+
     if (m_serverCommandManager) {
         connect(m_serverCommandManager, &ServerCommandManager::permissionChanged,
                 this, &QuickMenuManager::onServerCommandsChanged);
+        connect(m_serverCommandManager, &ServerCommandManager::commandsRefreshed,
+                this, &QuickMenuManager::onServerCommandsChanged);
     }
-    
+
     emit serverCommandsChanged();
 }
 
