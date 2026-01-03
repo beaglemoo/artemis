@@ -29,7 +29,6 @@ SdlInputHandler::SdlInputHandler(StreamingPreferences& prefs, int streamWidth, i
       m_AbsoluteTouchMode(prefs.absoluteTouchMode),
       m_DisabledTouchFeedback(false),
       m_MouseSensitivity(prefs.mouseSensitivity),
-      m_EnableMomentumScrolling(prefs.enableMomentumScrolling),
       m_EnableLocalCursor(prefs.enableLocalCursor),
       m_LeftButtonReleaseTimer(0),
       m_RightButtonReleaseTimer(0),

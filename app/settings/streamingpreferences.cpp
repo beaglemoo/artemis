@@ -63,7 +63,6 @@
 // Advanced mouse mode settings
 #define SER_MOUSESENSITIVITY "mousesensitivity"
 #define SER_LOCALCURSOR "localcursor"
-#define SER_MOMENTUMSCROLLING "momentumscrolling"
 
 // Virtual controller settings
 #define SER_VIRTUALCONTROLLER "virtualcontroller"
@@ -194,7 +193,6 @@ void StreamingPreferences::reload()
     // Advanced mouse mode settings
     mouseSensitivity = settings.value(SER_MOUSESENSITIVITY, 100).toInt();
     enableLocalCursor = settings.value(SER_LOCALCURSOR, false).toBool();
-    enableMomentumScrolling = settings.value(SER_MOMENTUMSCROLLING, true).toBool();
 
     // Virtual controller settings
     enableVirtualController = settings.value(SER_VIRTUALCONTROLLER, false).toBool();
@@ -399,7 +397,6 @@ void StreamingPreferences::save()
     // Advanced mouse mode settings
     settings.setValue(SER_MOUSESENSITIVITY, mouseSensitivity);
     settings.setValue(SER_LOCALCURSOR, enableLocalCursor);
-    settings.setValue(SER_MOMENTUMSCROLLING, enableMomentumScrolling);
 
     // Virtual controller settings
     settings.setValue(SER_VIRTUALCONTROLLER, enableVirtualController);

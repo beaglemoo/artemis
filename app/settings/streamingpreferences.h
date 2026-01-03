@@ -166,7 +166,6 @@ public:
     // Advanced mouse mode settings
     Q_PROPERTY(int mouseSensitivity MEMBER mouseSensitivity NOTIFY mouseSensitivityChanged)
     Q_PROPERTY(bool enableLocalCursor MEMBER enableLocalCursor NOTIFY enableLocalCursorChanged)
-    Q_PROPERTY(bool enableMomentumScrolling MEMBER enableMomentumScrolling NOTIFY enableMomentumScrollingChanged)
 
     // Virtual controller settings
     Q_PROPERTY(bool enableVirtualController MEMBER enableVirtualController NOTIFY enableVirtualControllerChanged)
@@ -224,7 +223,6 @@ public:
     // Advanced mouse mode settings
     int mouseSensitivity;
     bool enableLocalCursor;
-    bool enableMomentumScrolling;
 
     // Virtual controller settings
     bool enableVirtualController;
@@ -277,7 +275,6 @@ signals:
     // Advanced mouse mode signals
     void mouseSensitivityChanged();
     void enableLocalCursorChanged();
-    void enableMomentumScrollingChanged();
 
     // Virtual controller signals
     void enableVirtualControllerChanged();
