@@ -98,6 +98,10 @@ void SdlInputHandler::handleMouseMotionEvent(SDL_MouseMotionEvent* event)
     event = nullptr;
 
     if (m_AbsoluteMouseMode) {
+        // In absolute mode, we send the exact screen position to the host.
+        // Mouse sensitivity is not applied here because absolute positioning
+        // requires 1:1 mapping between cursor position and screen location.
+        // Sensitivity only affects relative mouse movement below.
         int windowWidth, windowHeight;
         SDL_GetWindowSize(m_Window, &windowWidth, &windowHeight);
 
