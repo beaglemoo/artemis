@@ -781,6 +781,14 @@ public:
     { @autoreleasepool {
         int err;
 
+        // Verify mutex and condition variable were created successfully in constructor
+        if (!m_PresentationMutex || !m_PresentationCond) {
+            SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                         "Failed to create synchronization primitives");
+            m_InitFailureReason = InitFailureReason::NoSoftwareSupport;
+            return false;
+        }
+
         m_Window = params->window;
 
         id<MTLDevice> device = getMetalDevice();
