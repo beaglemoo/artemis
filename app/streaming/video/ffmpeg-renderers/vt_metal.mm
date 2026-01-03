@@ -139,7 +139,8 @@ public:
           m_LastDrawableHeight(-1),
           m_PresentationMutex(SDL_CreateMutex()),
           m_PresentationCond(SDL_CreateCond()),
-          m_PendingPresentationCount(0)
+          m_PendingPresentationCount(0),
+          m_UseUnifiedMemoryOptimizations(false)
     {
     }
 
@@ -277,8 +278,7 @@ public:
         };
 
         [m_VideoVertexBuffer release];
-        auto bufferOptions = MTLCPUCacheModeWriteCombined | MTLResourceStorageModeManaged;
-        m_VideoVertexBuffer = [m_MetalLayer.device newBufferWithBytes:verts length:sizeof(verts) options:bufferOptions];
+        m_VideoVertexBuffer = [m_MetalLayer.device newBufferWithBytes:verts length:sizeof(verts) options:getOptimalBufferStorageMode()];
         if (!m_VideoVertexBuffer) {
             SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                          "Failed to create video vertex buffer");
@@ -367,8 +367,7 @@ public:
 
             // Create the new colorspace parameter buffer for our fragment shader
             [m_CscParamsBuffer release];
-            auto bufferOptions = MTLCPUCacheModeWriteCombined | MTLResourceStorageModeManaged;
-            m_CscParamsBuffer = [m_MetalLayer.device newBufferWithBytes:(void*)&paramBuffer length:sizeof(paramBuffer) options:bufferOptions];
+            m_CscParamsBuffer = [m_MetalLayer.device newBufferWithBytes:(void*)&paramBuffer length:sizeof(paramBuffer) options:getOptimalBufferStorageMode()];
             if (!m_CscParamsBuffer) {
                 SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
                              "Failed to create CSC parameters buffer");
@@ -461,7 +460,7 @@ public:
                                                                              height:planeHeight
                                                                           mipmapped:NO];
             texDesc.cpuCacheMode = MTLCPUCacheModeWriteCombined;
-            texDesc.storageMode = MTLStorageModeManaged;
+            texDesc.storageMode = getOptimalTextureStorageMode();
             texDesc.usage = MTLTextureUsageShaderRead;
 
             m_SwMappingTextures[planeIndex] = [m_MetalLayer.device newTextureWithDescriptor:texDesc];
@@ -655,6 +654,28 @@ public:
         m_NextDrawable = nullptr;
     }}
 
+    // Returns the optimal buffer storage mode for the current device
+    // Apple Silicon (unified memory) benefits from MTLStorageModeShared
+    // which avoids unnecessary CPU-GPU synchronization overhead
+    MTLResourceOptions getOptimalBufferStorageMode() {
+        if (m_UseUnifiedMemoryOptimizations) {
+            // Apple Silicon: Use shared storage for zero-copy CPU/GPU access
+            return MTLCPUCacheModeWriteCombined | MTLResourceStorageModeShared;
+        } else {
+            // Intel/discrete GPU: Use managed storage with explicit sync
+            return MTLCPUCacheModeWriteCombined | MTLResourceStorageModeManaged;
+        }
+    }
+
+    // Returns the optimal texture storage mode for the current device
+    MTLStorageMode getOptimalTextureStorageMode() {
+        if (m_UseUnifiedMemoryOptimizations) {
+            return MTLStorageModeShared;
+        } else {
+            return MTLStorageModeManaged;
+        }
+    }
+
     id<MTLDevice> getMetalDevice() {
         if (qgetenv("VT_FORCE_METAL") == "0") {
             SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
@@ -671,6 +692,12 @@ public:
 
         for (id<MTLDevice> device in devices) {
             if (device.isLowPower || device.hasUnifiedMemory) {
+                // Enable unified memory optimizations for Apple Silicon
+                if (device.hasUnifiedMemory) {
+                    m_UseUnifiedMemoryOptimizations = true;
+                    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                                "Apple Silicon detected: enabling unified memory optimizations");
+                }
                 return device;
             }
         }
@@ -812,7 +839,7 @@ public:
                                                                          height:newSurface->h
                                                                       mipmapped:NO];
         texDesc.cpuCacheMode = MTLCPUCacheModeWriteCombined;
-        texDesc.storageMode = MTLStorageModeManaged;
+        texDesc.storageMode = getOptimalTextureStorageMode();
         texDesc.usage = MTLTextureUsageShaderRead;
         auto newTexture = [m_MetalLayer.device newTextureWithDescriptor:texDesc];
 
@@ -838,8 +865,9 @@ public:
         }
 
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                    "Using Metal renderer with %s decoding",
-                    m_HwAccel ? "hardware" : "software");
+                    "Using Metal renderer with %s decoding%s",
+                    m_HwAccel ? "hardware" : "software",
+                    m_UseUnifiedMemoryOptimizations ? " (Apple Silicon optimized)" : "");
 
         return true;
     }
@@ -963,6 +991,7 @@ private:
     SDL_mutex* m_PresentationMutex;
     SDL_cond* m_PresentationCond;
     int m_PendingPresentationCount;
+    bool m_UseUnifiedMemoryOptimizations;
 };
 
 IFFmpegRenderer* VTMetalRendererFactory::createRenderer(bool hwAccel) {
