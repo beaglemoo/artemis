@@ -5,6 +5,7 @@
 #include <QAbstractListModel>
 #include <QJsonObject>
 #include <QTimer>
+#include <QMutex>
 #include "nvcomputer.h"
 
 class NvHTTP;
@@ -117,4 +118,7 @@ private:
     
     bool m_refreshInProgress;
     QString m_currentExecutingCommand;
+
+    // Thread safety (recursive to allow nested calls like setConnection->refreshCommands)
+    mutable QRecursiveMutex m_mutex;
 };

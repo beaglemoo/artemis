@@ -412,7 +412,9 @@ void QuickMenuManager::createQuickView()
         
         qDebug() << "QML loading status:" << m_quickView->status();
         if (m_quickView->status() == QQuickView::Error) {
-            qDebug() << "QuickMenuManager: Error loading QML:" << m_quickView->errors();
+            qWarning() << "QuickMenuManager: Error loading QML:" << m_quickView->errors();
+            delete m_quickView;
+            m_quickView = nullptr;
             return;
         } else if (m_quickView->status() == QQuickView::Ready) {
             qDebug() << "QML loaded successfully";

@@ -38,6 +38,7 @@ ServerCommandManager::~ServerCommandManager()
 
 void ServerCommandManager::setConnection(NvComputer *computer, NvHTTP *http)
 {
+    QMutexLocker locker(&m_mutex);
     m_computer = computer;
     m_http = http;
     
@@ -61,6 +62,7 @@ void ServerCommandManager::setConnection(NvComputer *computer, NvHTTP *http)
 
 void ServerCommandManager::disconnect()
 {
+    QMutexLocker locker(&m_mutex);
     m_computer = nullptr;
     m_http = nullptr;
     m_hasPermission = false;
@@ -77,6 +79,7 @@ bool ServerCommandManager::hasServerCommandPermission() const
 
 void ServerCommandManager::refreshCommands()
 {
+    QMutexLocker locker(&m_mutex);
     if (m_refreshInProgress || !m_computer || !m_http) {
         qDebug() << "ServerCommandManager::refreshCommands: Cannot refresh - inProgress:" << m_refreshInProgress
                  << ", computer:" << (m_computer != nullptr)
@@ -152,6 +155,7 @@ void ServerCommandManager::refreshCommands()
 
 void ServerCommandManager::executeCommand(const QString &commandId)
 {
+    QMutexLocker locker(&m_mutex);
     if (!m_computer || !m_http || !m_hasPermission) {
         emit commandFailed(commandId, "Server commands not available");
         return;
