@@ -60,6 +60,11 @@
 #define SER_RESOLUTIONSCALING "resolutionscaling"
 #define SER_RESOLUTIONSCALEFACTOR "resolutionscalefactor"
 
+// Advanced mouse mode settings
+#define SER_MOUSESENSITIVITY "mousesensitivity"
+#define SER_LOCALCURSOR "localcursor"
+#define SER_MOMENTUMSCROLLING "momentumscrolling"
+
 #define CURRENT_DEFAULT_VER 2
 
 static StreamingPreferences* s_GlobalPrefs;
@@ -183,6 +188,10 @@ void StreamingPreferences::reload()
     enableResolutionScaling = settings.value(SER_RESOLUTIONSCALING, false).toBool();
     resolutionScaleFactor = settings.value(SER_RESOLUTIONSCALEFACTOR, 100).toInt();
 
+    // Advanced mouse mode settings
+    mouseSensitivity = settings.value(SER_MOUSESENSITIVITY, 100).toInt();
+    enableLocalCursor = settings.value(SER_LOCALCURSOR, false).toBool();
+    enableMomentumScrolling = settings.value(SER_MOMENTUMSCROLLING, true).toBool();
 
     // Perform default settings updates as required based on last default version
     if (defaultVer < 1) {
@@ -380,6 +389,11 @@ void StreamingPreferences::save()
     settings.setValue(SER_CUSTOMREFRESHRATE, customRefreshRate);
     settings.setValue(SER_RESOLUTIONSCALING, enableResolutionScaling);
     settings.setValue(SER_RESOLUTIONSCALEFACTOR, resolutionScaleFactor);
+
+    // Advanced mouse mode settings
+    settings.setValue(SER_MOUSESENSITIVITY, mouseSensitivity);
+    settings.setValue(SER_LOCALCURSOR, enableLocalCursor);
+    settings.setValue(SER_MOMENTUMSCROLLING, enableMomentumScrolling);
 }
 
 int StreamingPreferences::getDefaultBitrate(int width, int height, int fps, bool yuv444)

@@ -150,7 +150,9 @@ void SdlInputHandler::handleMouseMotionEvent(SDL_MouseMotionEvent* event)
         m_MouseWasInVideoRegion = mouseInVideoRegion;
     }
     else {
-        LiSendMouseMoveEvent(xrel, yrel);
+        // Apply mouse sensitivity (100 = normal, 50 = half speed, 200 = double speed)
+        float sensitivityMultiplier = m_MouseSensitivity / 100.0f;
+        LiSendMouseMoveEvent((short)(xrel * sensitivityMultiplier), (short)(yrel * sensitivityMultiplier));
     }
 }
 

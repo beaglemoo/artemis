@@ -163,6 +163,11 @@ public:
     Q_PROPERTY(bool enableResolutionScaling MEMBER enableResolutionScaling NOTIFY enableResolutionScalingChanged)
     Q_PROPERTY(int resolutionScaleFactor MEMBER resolutionScaleFactor NOTIFY resolutionScaleFactorChanged);
 
+    // Advanced mouse mode settings
+    Q_PROPERTY(int mouseSensitivity MEMBER mouseSensitivity NOTIFY mouseSensitivityChanged)
+    Q_PROPERTY(bool enableLocalCursor MEMBER enableLocalCursor NOTIFY enableLocalCursorChanged)
+    Q_PROPERTY(bool enableMomentumScrolling MEMBER enableMomentumScrolling NOTIFY enableMomentumScrollingChanged)
+
     Q_INVOKABLE bool retranslate();
 
     // Directly accessible members for preferences
@@ -213,6 +218,11 @@ public:
     bool enableResolutionScaling;
     int resolutionScaleFactor;
 
+    // Advanced mouse mode settings
+    int mouseSensitivity;
+    bool enableLocalCursor;
+    bool enableMomentumScrolling;
+
 signals:
     void displayModeChanged();
     void bitrateChanged();
@@ -257,6 +267,11 @@ signals:
     void customRefreshRateChanged();
     void enableResolutionScalingChanged();
     void resolutionScaleFactorChanged();
+
+    // Advanced mouse mode signals
+    void mouseSensitivityChanged();
+    void enableLocalCursorChanged();
+    void enableMomentumScrollingChanged();
 
 private:
     explicit StreamingPreferences(QQmlEngine *qmlEngine);

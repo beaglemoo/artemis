@@ -1482,6 +1482,42 @@ Flickable {
                                   qsTr("NOTE: Due to a bug in GeForce Experience, this option may not work properly if your host PC has multiple monitors.")
                 }
 
+                Column {
+                    width: parent.width
+                    spacing: 5
+
+                    Label {
+                        width: parent.width
+                        text: qsTr("Mouse sensitivity: %1%").arg(mouseSensitivitySlider.value)
+                        font.pointSize: 12
+                    }
+
+                    Slider {
+                        id: mouseSensitivitySlider
+                        width: parent.width
+                        from: 25
+                        to: 200
+                        stepSize: 5
+                        value: StreamingPreferences.mouseSensitivity
+                        onValueChanged: {
+                            StreamingPreferences.mouseSensitivity = value
+                        }
+
+                        ToolTip {
+                            parent: mouseSensitivitySlider.handle
+                            visible: mouseSensitivitySlider.pressed
+                            text: mouseSensitivitySlider.value + "%"
+                        }
+                    }
+
+                    Label {
+                        width: parent.width
+                        text: qsTr("Adjust mouse movement sensitivity (100% = normal)")
+                        font.pointSize: 10
+                        color: "#888888"
+                    }
+                }
+
                 Row {
                     spacing: 5
                     width: parent.width
