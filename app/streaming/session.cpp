@@ -620,7 +620,8 @@ Session::Session(NvComputer* computer, NvApp& app, StreamingPreferences *prefere
     m_DropAudioEndTime(0),
     m_QuickMenuManager(new QuickMenuManager()),
     m_ServerCommandManager(new ServerCommandManager()),
-    m_ClipboardManager(ClipboardManager::instance())
+    m_ClipboardManager(ClipboardManager::instance()),
+    m_VirtualControllerManager(new VirtualControllerManager())
 {
 }
 
@@ -2088,12 +2089,25 @@ void Session::execInternal()
         int actualX, actualY;
         SDL_GetWindowPosition(m_Window, &actualX, &actualY);
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                    "Setting QuickMenuManager geometry: %d,%d %dx%d (actual pos: %d,%d)", 
+                    "Setting QuickMenuManager geometry: %d,%d %dx%d (actual pos: %d,%d)",
                     x, y, width, height, actualX, actualY);
         m_QuickMenuManager->setWindowGeometry(actualX, actualY, width, height);
     } else {
         SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
                     "QuickMenuManager is null when trying to set geometry");
+    }
+
+    // Set up VirtualControllerManager
+    if (m_VirtualControllerManager) {
+        int actualX, actualY;
+        SDL_GetWindowPosition(m_Window, &actualX, &actualY);
+        m_VirtualControllerManager->setWindowGeometry(actualX, actualY, width, height);
+        m_VirtualControllerManager->setEnabled(m_Preferences->enableVirtualController);
+        if (m_Preferences->enableVirtualController) {
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                        "Virtual controller enabled, showing overlay");
+            m_VirtualControllerManager->show();
+        }
     }
 
     QSvgRenderer svgIconRenderer(QString(":/res/artemis.svg"));

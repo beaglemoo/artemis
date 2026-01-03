@@ -216,6 +216,7 @@ SOURCES += \
     backend/serverpermissions.cpp \
     backend/quickmenumanager.cpp \
     backend/otppairingmanager.cpp \
+    backend/virtualcontrollermanager.cpp \
     settings/artemissettings.cpp \
     wm.cpp
 
@@ -259,6 +260,7 @@ HEADERS += \
     backend/serverpermissions.h \
     backend/quickmenumanager.h \
     backend/otppairingmanager.h \
+    backend/virtualcontrollermanager.h \
     settings/artemissettings.h
 
 # Platform-specific renderers and decoders

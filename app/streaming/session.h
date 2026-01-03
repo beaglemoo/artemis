@@ -14,10 +14,12 @@
 #include "backend/quickmenumanager.h"
 #include "backend/servercommandmanager.h"
 #include "backend/clipboardmanager.h"
+#include "backend/virtualcontrollermanager.h"
 
 class QuickMenuManager;
 class ServerCommandManager;
 class ClipboardManager;
+class VirtualControllerManager;
 
 class SupportedVideoFormatList : public QList<int>
 {
@@ -123,6 +125,10 @@ public:
         if (m_ClipboardManager) {
             delete m_ClipboardManager;
             m_ClipboardManager = nullptr;
+        }
+        if (m_VirtualControllerManager) {
+            delete m_VirtualControllerManager;
+            m_VirtualControllerManager = nullptr;
         }
     };
 
@@ -314,6 +320,7 @@ private:
     QuickMenuManager* m_QuickMenuManager;
     ServerCommandManager* m_ServerCommandManager;
     ClipboardManager* m_ClipboardManager;
+    VirtualControllerManager* m_VirtualControllerManager;
 
     static CONNECTION_LISTENER_CALLBACKS k_ConnCallbacks;
     static Session* s_ActiveSession;
