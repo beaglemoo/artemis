@@ -388,6 +388,13 @@ public:
                 break;
             }
 
+            // Verify color space was created successfully
+            if (!newColorSpace) {
+                SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                             "Failed to create color space: %s", colorspaceName);
+                return false;
+            }
+
             SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
                         "Color space changed to %s (%s range)",
                         colorspaceName,

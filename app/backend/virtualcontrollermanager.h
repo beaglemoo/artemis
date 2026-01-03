@@ -43,7 +43,7 @@ public slots:
     // Button input handlers - connected to QML signals
     void onButtonPressed(int button);
     void onButtonReleased(int button);
-    void onStickMoved(int stick, float x, float y);
+    void onStickMoved(int stick, qreal x, qreal y);
 
 signals:
     void visibilityChanged();

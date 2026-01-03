@@ -132,7 +132,7 @@ void VirtualControllerManager::createOverlay()
             connect(m_rootItem, SIGNAL(buttonReleased(int)),
                     this, SLOT(onButtonReleased(int)));
             connect(m_rootItem, SIGNAL(stickMoved(int, qreal, qreal)),
-                    this, SLOT(onStickMoved(int, float, float)));
+                    this, SLOT(onStickMoved(int, qreal, qreal)));
 
             // Set the controller to visible state
             m_rootItem->setProperty("showController", true);
@@ -185,11 +185,11 @@ void VirtualControllerManager::onButtonReleased(int button)
     sendControllerState();
 }
 
-void VirtualControllerManager::onStickMoved(int stick, float x, float y)
+void VirtualControllerManager::onStickMoved(int stick, qreal x, qreal y)
 {
     // Clamp values to valid range before conversion
-    x = qBound(-1.0f, x, 1.0f);
-    y = qBound(-1.0f, y, 1.0f);
+    x = qBound(-1.0, x, 1.0);
+    y = qBound(-1.0, y, 1.0);
 
     // Convert -1.0 to 1.0 range to -32768 to 32767
     short stickX = (short)(x * 32767);
