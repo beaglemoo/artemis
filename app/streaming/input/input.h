@@ -240,6 +240,7 @@ private:
     bool m_DisabledTouchFeedback;
     int m_MouseSensitivity;
     bool m_EnableMomentumScrolling;
+    bool m_EnableLocalCursor;
 
     SDL_TouchFingerEvent m_TouchDownEvent[MAX_FINGERS];
     SDL_TimerID m_LeftButtonReleaseTimer;

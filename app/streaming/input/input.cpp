@@ -30,6 +30,7 @@ SdlInputHandler::SdlInputHandler(StreamingPreferences& prefs, int streamWidth, i
       m_DisabledTouchFeedback(false),
       m_MouseSensitivity(prefs.mouseSensitivity),
       m_EnableMomentumScrolling(prefs.enableMomentumScrolling),
+      m_EnableLocalCursor(prefs.enableLocalCursor),
       m_LeftButtonReleaseTimer(0),
       m_RightButtonReleaseTimer(0),
       m_DragTimer(0),
@@ -39,6 +40,12 @@ SdlInputHandler::SdlInputHandler(StreamingPreferences& prefs, int streamWidth, i
     // System keys are always captured when running without a DE
     if (!WMUtils::isRunningDesktopEnvironment()) {
         m_CaptureSystemKeysMode = StreamingPreferences::CSK_ALWAYS;
+    }
+
+    // If local cursor is enabled, show the cursor even when captured
+    // This reduces perceived latency by showing cursor movement immediately
+    if (m_EnableLocalCursor) {
+        m_MouseCursorCapturedVisibilityState = SDL_ENABLE;
     }
 
     // Allow gamepad input when the app doesn't have focus if requested
