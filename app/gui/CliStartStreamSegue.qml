@@ -14,11 +14,19 @@ Item {
 
     function onSessionCreated(appName, session) {
         var component = Qt.createComponent("StreamSegue.qml")
+        if (component.status !== Component.Ready) {
+            console.error("CliStartStreamSegue: Failed to load StreamSegue component:", component.errorString())
+            return
+        }
         var segue = component.createObject(stackView, {
             "appName": appName,
             "session": session,
             "quitAfter": true
         })
+        if (!segue) {
+            console.error("CliStartStreamSegue: Failed to create StreamSegue instance")
+            return
+        }
         stackView.push(segue)
     }
 
@@ -80,8 +88,17 @@ Item {
 
         function quitApp() {
             var component = Qt.createComponent("QuitSegue.qml")
+            if (component.status !== Component.Ready) {
+                console.error("CliStartStreamSegue: Failed to load QuitSegue component:", component.errorString())
+                return
+            }
             var params = {"appName": appName, "quitRunningAppFn": function() { launcher.quitRunningApp() }}
-            stackView.push(component.createObject(stackView, params))
+            var segue = component.createObject(stackView, params)
+            if (!segue) {
+                console.error("CliStartStreamSegue: Failed to create QuitSegue instance")
+                return
+            }
+            stackView.push(segue)
         }
 
         onAccepted: quitApp()

@@ -429,6 +429,10 @@ NvHTTP::getBoxArt(int appId)
                                           "&AssetType=2&AssetIdx=0",
                                           REQUEST_TIMEOUT_MS,
                                           NvLogLevel::NVLL_VERBOSE);
+    // Defensive null check (openConnection throws on error but be safe)
+    if (!reply) {
+        return QImage();
+    }
     QImage image = QImageReader(reply).read();
     delete reply;
 

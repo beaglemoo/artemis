@@ -53,10 +53,13 @@ Item {
         // This toast appears for 3 seconds, just shorter than how long
         // Session will wait for it to be displayed. This gives it time
         // to transition to invisible before continuing.
-        var toast = Qt.createQmlObject('import QtQuick.Controls 2.2; ToolTip {}', parent, '')
-        toast.text = text
-        toast.timeout = 3000
-        toast.visible = true
+        // Note: ToolTip is parented to 'this' to ensure proper cleanup on component destruction
+        var toast = Qt.createQmlObject('import QtQuick.Controls 2.2; ToolTip {}', this, '')
+        if (toast) {
+            toast.text = text
+            toast.timeout = 3000
+            toast.visible = true
+        }
         console.warn(text)
     }
 
@@ -64,7 +67,16 @@ Item {
     {
         // Avoid the push transition animation
         var component = Qt.createComponent("QuitSegue.qml")
-        stackView.replace(stackView.currentItem, component.createObject(stackView, {"appName": appName}), StackView.Immediate)
+        if (component.status !== Component.Ready) {
+            console.error("StreamSegue: Failed to load QuitSegue component:", component.errorString())
+            return
+        }
+        var segue = component.createObject(stackView, {"appName": appName})
+        if (!segue) {
+            console.error("StreamSegue: Failed to create QuitSegue instance")
+            return
+        }
+        stackView.replace(stackView.currentItem, segue, StackView.Immediate)
 
         // Show the Qt window again to show quit segue
         window.visible = true
