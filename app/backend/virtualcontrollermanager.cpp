@@ -203,10 +203,7 @@ void VirtualControllerManager::onStickMoved(int stick, float x, float y)
 void VirtualControllerManager::sendControllerState()
 {
     // Send the controller state via Limelight API
-    // Controller index 0 = first virtual controller
     LiSendControllerEvent(
-        0,                  // Controller index
-        0,                  // Active gamepad mask
         m_buttonFlags,      // Button flags
         m_leftTrigger,      // Left trigger (0-255)
         m_rightTrigger,     // Right trigger (0-255)
