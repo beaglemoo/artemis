@@ -156,11 +156,17 @@ void ServerCommandManager::refreshCommands()
 void ServerCommandManager::executeCommand(const QString &commandId)
 {
     QMutexLocker locker(&m_mutex);
+
+    if (commandId.isEmpty()) {
+        emit commandFailed(commandId, "Empty command ID");
+        return;
+    }
+
     if (!m_computer || !m_http || !m_hasPermission) {
         emit commandFailed(commandId, "Server commands not available");
         return;
     }
-    
+
     if (!m_availableCommands.contains(commandId)) {
         emit commandFailed(commandId, "Command not found");
         return;
