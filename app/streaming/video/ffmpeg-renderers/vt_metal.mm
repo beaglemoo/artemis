@@ -323,6 +323,19 @@ public:
         }
     }
 
+    // Returns a string description of the HDR transfer function
+    const char* getHdrTransferFunctionName(int color_trc) {
+        switch (color_trc) {
+            case AVCOL_TRC_SMPTE2084: return "PQ (HDR10)";
+            case AVCOL_TRC_ARIB_STD_B67: return "HLG";
+            case AVCOL_TRC_SMPTE240M: return "SMPTE 240M";
+            case AVCOL_TRC_BT709: return "BT.709";
+            case AVCOL_TRC_BT2020_10: return "BT.2020 10-bit";
+            case AVCOL_TRC_BT2020_12: return "BT.2020 12-bit";
+            default: return "SDR";
+        }
+    }
+
     bool updateColorSpaceForFrame(AVFrame* frame)
     {
         int colorspace = getFrameColorspace(frame);
@@ -330,6 +343,7 @@ public:
         if (colorspace != m_LastColorSpace || fullRange != m_LastFullRange) {
             CGColorSpaceRef newColorSpace;
             ParamBuffer paramBuffer;
+            const char* colorspaceName = "Unknown";
 
             // Free any unpresented drawable since we're changing pixel formats
             discardNextDrawable();
@@ -339,16 +353,27 @@ public:
                 m_MetalLayer.colorspace = newColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceITUR_709);
                 m_MetalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
                 paramBuffer.cscParams = (fullRange ? k_CscParams_Bt709Full : k_CscParams_Bt709Lim);
+                colorspaceName = "Rec. 709";
                 break;
             case COLORSPACE_REC_2020:
                 // https://developer.apple.com/documentation/metal/hdr_content/using_color_spaces_to_display_hdr_content
                 if (frame->color_trc == AVCOL_TRC_SMPTE2084) {
+                    // HDR10 with Perceptual Quantizer (PQ) transfer function
                     m_MetalLayer.colorspace = newColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceITUR_2100_PQ);
                     m_MetalLayer.pixelFormat = MTLPixelFormatBGR10A2Unorm;
+                    colorspaceName = "Rec. 2100 PQ (HDR10)";
+                }
+                else if (frame->color_trc == AVCOL_TRC_ARIB_STD_B67) {
+                    // Hybrid Log-Gamma (HLG) - common in broadcast HDR
+                    m_MetalLayer.colorspace = newColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceITUR_2100_HLG);
+                    m_MetalLayer.pixelFormat = MTLPixelFormatBGR10A2Unorm;
+                    colorspaceName = "Rec. 2100 HLG";
                 }
                 else {
+                    // SDR Rec. 2020 wide color gamut
                     m_MetalLayer.colorspace = newColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceITUR_2020);
                     m_MetalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+                    colorspaceName = "Rec. 2020 SDR";
                 }
                 paramBuffer.cscParams = (fullRange ? k_CscParams_Bt2020Full : k_CscParams_Bt2020Lim);
                 break;
@@ -357,8 +382,14 @@ public:
                 m_MetalLayer.colorspace = newColorSpace = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
                 m_MetalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
                 paramBuffer.cscParams = (fullRange ? k_CscParams_Bt601Full : k_CscParams_Bt601Lim);
+                colorspaceName = "sRGB (Rec. 601)";
                 break;
             }
+
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                        "Color space changed to %s (%s range)",
+                        colorspaceName,
+                        fullRange ? "full" : "limited");
 
             paramBuffer.bitnessScaleFactor = getBitnessScaleFactor(frame);
 
@@ -739,7 +770,30 @@ public:
         m_MetalLayer.device = device;
 
         // Allow EDR content if we're streaming in a 10-bit format
-        m_MetalLayer.wantsExtendedDynamicRangeContent = !!(params->videoFormat & VIDEO_FORMAT_MASK_10BIT);
+        bool is10Bit = !!(params->videoFormat & VIDEO_FORMAT_MASK_10BIT);
+        m_MetalLayer.wantsExtendedDynamicRangeContent = is10Bit;
+
+        // Log HDR/EDR capabilities for the display
+        if (is10Bit) {
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                        "10-bit video format detected, enabling Extended Dynamic Range (EDR) content");
+
+            // Check if the display supports EDR (XDR displays, Pro Display XDR, etc.)
+            // Note: maximumExtendedDynamicRangeColorComponentValue indicates peak brightness capability
+            // Standard SDR displays return 1.0, HDR displays can return up to 8.0+ (1600 nits)
+            NSScreen* screen = [NSScreen mainScreen];
+            if (screen) {
+                CGFloat maxEDR = screen.maximumExtendedDynamicRangeColorComponentValue;
+                CGFloat potentialEDR = screen.maximumPotentialExtendedDynamicRangeColorComponentValue;
+                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                            "Display EDR capability: current=%.2f, potential=%.2f (1.0=SDR, >1.0=HDR/XDR)",
+                            maxEDR, potentialEDR);
+                if (potentialEDR > 1.0) {
+                    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                                "HDR-capable display detected (XDR/HDR support available)");
+                }
+            }
+        }
 
         // Ideally, we don't actually want triple buffering due to increased
         // display latency, since our render time is very short. However, we
@@ -876,18 +930,23 @@ public:
         if (m_HdrModeEnabled == enabled) {
             return; // No change needed
         }
-        
+
         m_HdrModeEnabled = enabled;
-        
+
         SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                    "VTMetalRenderer: HDR mode %s", 
+                    "VTMetalRenderer: HDR mode %s",
                     enabled ? "ENABLED" : "DISABLED");
-        
+
+        // Update EDR content flag based on HDR mode
+        if (m_MetalLayer) {
+            m_MetalLayer.wantsExtendedDynamicRangeContent = enabled;
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                        "VTMetalRenderer: Extended Dynamic Range content %s",
+                        enabled ? "enabled" : "disabled");
+        }
+
         // Force colorspace re-evaluation on next frame
         m_LastColorSpace = -1;
-        
-        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                    "VTMetalRenderer: Reset colorspace cache to force HDR mode update");
     }
 
     bool isPixelFormatSupported(int videoFormat, AVPixelFormat pixelFormat) override
