@@ -63,7 +63,8 @@ private:
     bool isAppCurrentlyVisible(const NvApp& app);
 
     NvComputer* m_Computer;
-    BoxArtManager m_BoxArtManager;
+    // mutable because loadBoxArt() caches results and doesn't change logical state
+    mutable BoxArtManager m_BoxArtManager;
     ComputerManager* m_ComputerManager;
     QVector<NvApp> m_VisibleApps, m_AllApps;
     int m_CurrentGameId;
