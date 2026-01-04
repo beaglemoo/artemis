@@ -84,11 +84,18 @@ void Session::clStageStarting(int stage)
     // We know this is called on the same thread as LiStartConnection()
     // which happens to be the main thread, so it's cool to interact
     // with the GUI in these callbacks.
+    if (!s_ActiveSession) {
+        return;
+    }
     emit s_ActiveSession->stageStarting(QString::fromLocal8Bit(LiGetStageName(stage)));
 }
 
 void Session::clStageFailed(int stage, int errorCode)
 {
+    if (!s_ActiveSession) {
+        return;
+    }
+
     // Perform the port test now, while we're on the async connection thread and not blocking the UI.
     unsigned int portFlags = LiGetPortFlagsFromStage(stage);
     s_ActiveSession->m_PortTestResults = LiTestClientConnectivity(CONN_TEST_SERVER, 443, portFlags);
@@ -100,6 +107,10 @@ void Session::clStageFailed(int stage, int errorCode)
 
 void Session::clConnectionTerminated(int errorCode)
 {
+    if (!s_ActiveSession) {
+        return;
+    }
+
     unsigned int portFlags = LiGetPortFlagsFromTerminationErrorCode(errorCode);
     s_ActiveSession->m_PortTestResults = LiTestClientConnectivity(CONN_TEST_SERVER, 443, portFlags);
 
@@ -184,6 +195,10 @@ void Session::clRumble(unsigned short controllerNumber, unsigned short lowFreqMo
 
 void Session::clConnectionStatusUpdate(int connectionStatus)
 {
+    if (!s_ActiveSession) {
+        return;
+    }
+
     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
                 "Connection status update: %d",
                 connectionStatus);
@@ -213,6 +228,10 @@ void Session::clConnectionStatusUpdate(int connectionStatus)
 
 void Session::clSetHdrMode(bool enabled)
 {
+    if (!s_ActiveSession) {
+        return;
+    }
+
     // If we're in the process of recreating our decoder when we get
     // this callback, we'll drop it. The main thread will make the
     // callback when it finishes creating the new decoder.
@@ -276,6 +295,11 @@ void Session::clSetAdaptiveTriggers(uint16_t controllerNumber, uint8_t eventFlag
     // Based on the following SDL code:
     // https://github.com/libsdl-org/SDL/blob/120c76c84bbce4c1bfed4e9eb74e10678bd83120/test/testgamecontroller.c#L286-L307
     DualSenseOutputReport *state = (DualSenseOutputReport *) SDL_malloc(sizeof(DualSenseOutputReport));
+    if (!state) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                     "Failed to allocate DualSenseOutputReport");
+        return;
+    }
     SDL_zero(*state);
     state->validFlag0 = (eventFlags & DS_EFFECT_RIGHT_TRIGGER) | (eventFlags & DS_EFFECT_LEFT_TRIGGER);
     state->rightTriggerEffectType = typeRight;
@@ -503,14 +527,16 @@ void Session::getDecoderInfo(SDL_Window* window,
 int Session::getActualFpsForDecoderTest() const
 {
     int fps = m_StreamConfig.fps;
-    
+
     // If fractional refresh rate is enabled, the fps might be multiplied by 1000 for Apollo
     if (m_Preferences->enableFractionalRefreshRate && fps > 1000) {
         // Convert back from Apollo's internal representation (fps * 1000) to actual fps
         fps = fps / 1000;
     }
-    
-    return fps;
+
+    // Prevent divide-by-zero when used with modulo operations
+    // Default to 60 FPS if fps is invalid or uninitialized
+    return (fps > 0) ? fps : 60;
 }
 
 Session::DecoderAvailability
@@ -1553,50 +1579,52 @@ void Session::updateOptimalWindowDisplayMode()
     // If we didn't find a mode that matched the current resolution and
     // had a high enough refresh rate, start looking for lower resolution
     // modes that can meet the required refresh rate and minimum video
-        // resolution. We will also try to pick a display mode that matches
-        // aspect ratio closest to the video stream.
-        if (bestMode.refresh_rate == 0) {
-            float bestModeAspectRatio = 0;
-            float videoAspectRatio = (float)m_ActiveVideoWidth / (float)m_ActiveVideoHeight;
-            
-            if (aspectRatioDebug) {
-                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                            "Aspect Ratio Debug: Looking for display modes matching video aspect ratio %.3f",
-                            videoAspectRatio);
-            }
-            
-            for (int i = 0; i < SDL_GetNumDisplayModes(displayIndex); i++) {
-                if (SDL_GetDisplayMode(displayIndex, i, &mode) == 0) {
-                    float modeAspectRatio = (float)mode.w / (float)mode.h;
-                    if (mode.w >= m_ActiveVideoWidth && mode.h >= m_ActiveVideoHeight &&
-                            mode.refresh_rate % getActualFpsForDecoderTest() == 0) {
-                        
+    // resolution. We will also try to pick a display mode that matches
+    // aspect ratio closest to the video stream.
+    if (bestMode.refresh_rate == 0) {
+        float bestModeAspectRatio = 0;
+        float videoAspectRatio = (float)m_ActiveVideoWidth / (float)m_ActiveVideoHeight;
+
+        if (aspectRatioDebug) {
+            SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                        "Aspect Ratio Debug: Looking for display modes matching video aspect ratio %.3f",
+                        videoAspectRatio);
+        }
+
+        for (int i = 0; i < SDL_GetNumDisplayModes(displayIndex); i++) {
+            if (SDL_GetDisplayMode(displayIndex, i, &mode) == 0) {
+                float modeAspectRatio = (float)mode.w / (float)mode.h;
+                if (mode.w >= m_ActiveVideoWidth && mode.h >= m_ActiveVideoHeight &&
+                        mode.refresh_rate % getActualFpsForDecoderTest() == 0) {
+
+                    if (aspectRatioDebug) {
+                        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                                    "Aspect Ratio Debug: Considering mode %dx%dx%d (%.3f) - aspect diff=%.3f",
+                                    mode.w, mode.h, mode.refresh_rate, modeAspectRatio,
+                                    fabs(videoAspectRatio - modeAspectRatio));
+                    }
+
+                    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                                "Found display mode with video resolution: %dx%dx%d",
+                                mode.w, mode.h, mode.refresh_rate);
+                    if (mode.refresh_rate >= bestMode.refresh_rate &&
+                            (bestModeAspectRatio == 0 || fabs(videoAspectRatio - modeAspectRatio) <= fabs(videoAspectRatio - bestModeAspectRatio))) {
+                        bestMode = mode;
+                        bestModeAspectRatio = modeAspectRatio;
+
                         if (aspectRatioDebug) {
                             SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                                        "Aspect Ratio Debug: Considering mode %dx%dx%d (%.3f) - aspect diff=%.3f",
+                                        "Aspect Ratio Debug: New best mode %dx%dx%d (%.3f) - diff=%.3f",
                                         mode.w, mode.h, mode.refresh_rate, modeAspectRatio,
                                         fabs(videoAspectRatio - modeAspectRatio));
-                        }
-                        
-                        SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                                    "Found display mode with video resolution: %dx%dx%d",
-                                    mode.w, mode.h, mode.refresh_rate);
-                        if (mode.refresh_rate >= bestMode.refresh_rate &&
-                                (bestModeAspectRatio == 0 || fabs(videoAspectRatio - modeAspectRatio) <= fabs(videoAspectRatio - bestModeAspectRatio))) {
-                            bestMode = mode;
-                            bestModeAspectRatio = modeAspectRatio;
-                            
-                            if (aspectRatioDebug) {
-                                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                                            "Aspect Ratio Debug: New best mode %dx%dx%d (%.3f) - diff=%.3f",
-                                            mode.w, mode.h, mode.refresh_rate, modeAspectRatio,
-                                            fabs(videoAspectRatio - modeAspectRatio));
-                            }
                         }
                     }
                 }
             }
-        }    if (bestMode.refresh_rate == 0) {
+        }
+    }
+
+    if (bestMode.refresh_rate == 0) {
         // We may find no match if the user has moved a 120 FPS
         // stream onto a 60 Hz monitor (since no refresh rate can
         // divide our FPS setting). We'll stick to the default in

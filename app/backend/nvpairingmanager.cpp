@@ -14,8 +14,16 @@
 NvPairingManager::NvPairingManager(NvComputer* computer) :
     m_Http(computer)
 {
-    QByteArray cert = IdentityManager::get()->getCertificate();
-    BIO *bio = BIO_new_mem_buf(cert.data(), -1);
+    IdentityManager* identityMgr = IdentityManager::get();
+    if (!identityMgr) {
+        throw std::runtime_error("IdentityManager not initialized");
+    }
+
+    QByteArray cert = identityMgr->getCertificate();
+    if (cert.isEmpty()) {
+        throw std::runtime_error("Certificate is empty");
+    }
+    BIO *bio = BIO_new_mem_buf(cert.data(), cert.size());
     THROW_BAD_ALLOC_IF_NULL(bio);
 
     m_Cert = PEM_read_bio_X509(bio, nullptr, nullptr, nullptr);
@@ -25,8 +33,11 @@ NvPairingManager::NvPairingManager(NvComputer* computer) :
         throw std::runtime_error("Unable to load certificate");
     }
 
-    QByteArray pk = IdentityManager::get()->getPrivateKey();
-    bio = BIO_new_mem_buf(pk.data(), -1);
+    QByteArray pk = identityMgr->getPrivateKey();
+    if (pk.isEmpty()) {
+        throw std::runtime_error("Private key is empty");
+    }
+    bio = BIO_new_mem_buf(pk.data(), pk.size());
     THROW_BAD_ALLOC_IF_NULL(bio);
 
     m_PrivateKey = PEM_read_bio_PrivateKey(bio, nullptr, nullptr, nullptr);
@@ -46,9 +57,14 @@ NvPairingManager::~NvPairingManager()
 QByteArray
 NvPairingManager::generateRandomBytes(int length)
 {
-    char* data = static_cast<char*>(alloca(length));
-    RAND_bytes(reinterpret_cast<unsigned char*>(data), length);
-    return QByteArray(data, length);
+    // Use heap allocation to avoid stack overflow with large lengths
+    if (length <= 0 || length > 1024 * 1024) {
+        qCritical() << "Invalid random bytes length:" << length;
+        return QByteArray();
+    }
+    QByteArray data(length, 0);
+    RAND_bytes(reinterpret_cast<unsigned char*>(data.data()), length);
+    return data;
 }
 
 QByteArray
@@ -69,7 +85,11 @@ NvPairingManager::encrypt(const QByteArray& plaintext, const QByteArray& key)
                       &ciphertextLen,
                       reinterpret_cast<const unsigned char*>(plaintext.data()),
                       plaintext.length());
-    Q_ASSERT(ciphertextLen == ciphertext.length());
+    if (ciphertextLen != ciphertext.length()) {
+        qCritical() << "Encryption size mismatch: expected" << ciphertext.length() << "got" << ciphertextLen;
+        EVP_CIPHER_CTX_free(cipher);
+        return QByteArray();
+    }
 
     EVP_CIPHER_CTX_free(cipher);
 
@@ -94,7 +114,11 @@ NvPairingManager::decrypt(const QByteArray& ciphertext, const QByteArray& key)
                       &plaintextLen,
                       reinterpret_cast<const unsigned char*>(ciphertext.data()),
                       ciphertext.length());
-    Q_ASSERT(plaintextLen == plaintext.length());
+    if (plaintextLen != plaintext.length()) {
+        qCritical() << "Decryption size mismatch: expected" << plaintext.length() << "got" << plaintextLen;
+        EVP_CIPHER_CTX_free(cipher);
+        return QByteArray();
+    }
 
     EVP_CIPHER_CTX_free(cipher);
 
@@ -190,7 +214,24 @@ NvPairingManager::saltPin(const QByteArray& salt, QString pin)
 NvPairingManager::PairState
 NvPairingManager::pair(QString appVersion, QString pin, QSslCertificate& serverCert)
 {
-    int serverMajorVersion = NvHTTP::parseQuad(appVersion).at(0);
+    // Validate IdentityManager early
+    IdentityManager* identityMgr = IdentityManager::get();
+    if (!identityMgr) {
+        qCritical() << "IdentityManager not initialized";
+        return PairState::FAILED;
+    }
+    QByteArray clientCert = identityMgr->getCertificate();
+    if (clientCert.isEmpty()) {
+        qCritical() << "Client certificate is empty";
+        return PairState::FAILED;
+    }
+
+    QVector<int> versionParts = NvHTTP::parseQuad(appVersion);
+    if (versionParts.isEmpty()) {
+        qCritical() << "Invalid appVersion format:" << appVersion;
+        return PairState::FAILED;
+    }
+    int serverMajorVersion = versionParts.at(0);
     qInfo() << "Pairing with server generation:" << serverMajorVersion;
 
     QCryptographicHash::Algorithm hashAlgo;
@@ -211,13 +252,14 @@ NvPairingManager::pair(QString appVersion, QString pin, QSslCertificate& serverC
     QByteArray salt = generateRandomBytes(16);
     QByteArray saltedPin = saltPin(salt, pin);
 
-    QByteArray aesKey = QCryptographicHash::hash(saltedPin, hashAlgo).constData();
+    // Use QByteArray directly, not constData() which returns char* (bug fix)
+    QByteArray aesKey = QCryptographicHash::hash(saltedPin, hashAlgo);
     aesKey.truncate(16);
 
     QString getCert = m_Http.openConnectionToString(m_Http.m_BaseUrlHttp,
                                                     "pair",
                                                     "devicename=roth&updateState=1&phrase=getservercert&salt=" +
-                                                    salt.toHex() + "&clientcert=" + IdentityManager::get()->getCertificate().toHex(),
+                                                    salt.toHex() + "&clientcert=" + clientCert.toHex(),
                                                     0);
     NvHTTP::verifyResponseStatus(getCert);
     if (NvHTTP::getXmlString(getCert, "paired") != "1")
@@ -236,8 +278,7 @@ NvPairingManager::pair(QString appVersion, QString pin, QSslCertificate& serverC
 
     QSslCertificate unverifiedServerCert = QSslCertificate(serverCertStr);
     if (unverifiedServerCert.isNull()) {
-        Q_ASSERT(!unverifiedServerCert.isNull());
-
+        // Removed contradictory Q_ASSERT that would always fail here
         qCritical() << "Failed to parse plaincert";
         m_Http.openConnectionToString(m_Http.m_BaseUrlHttp, "unpair", nullptr, REQUEST_TIMEOUT_MS);
         return PairState::FAILED;
