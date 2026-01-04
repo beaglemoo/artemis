@@ -341,10 +341,10 @@ void QuickMenuManager::setServerCommandManager(ServerCommandManager *manager)
 {
     if (m_serverCommandManager) {
         // Only disconnect our specific connections, not all signals
-        disconnect(m_serverCommandManager, &ServerCommandManager::permissionChanged,
-                   this, &QuickMenuManager::onServerCommandsChanged);
-        disconnect(m_serverCommandManager, &ServerCommandManager::commandsRefreshed,
-                   this, &QuickMenuManager::onServerCommandsChanged);
+        QObject::disconnect(m_serverCommandManager, &ServerCommandManager::permissionChanged,
+                            this, &QuickMenuManager::onServerCommandsChanged);
+        QObject::disconnect(m_serverCommandManager, &ServerCommandManager::commandsRefreshed,
+                            this, &QuickMenuManager::onServerCommandsChanged);
     }
 
     m_serverCommandManager = manager;

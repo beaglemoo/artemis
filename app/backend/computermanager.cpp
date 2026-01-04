@@ -971,7 +971,7 @@ qDebug() << "PendingOTPPairingTask: Generated AES key from salt+PIN";
             QByteArray saltBytes(16, 0);
             if (RAND_bytes(reinterpret_cast<unsigned char*>(saltBytes.data()), 16) != 1) {
                 qCritical() << "PendingOTPPairingTask: RAND_bytes failed for saltBytes";
-                return false;
+                return;  // void function - cannot continue without random salt
             }
             QString saltStr = saltBytes.toHex();
 

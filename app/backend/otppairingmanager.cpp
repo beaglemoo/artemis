@@ -146,7 +146,7 @@ void OTPPairingManager::performOTPPairing(NvComputer *computer, const QString &p
     QByteArray saltBytes(16, 0);
     if (RAND_bytes(reinterpret_cast<unsigned char*>(saltBytes.data()), 16) != 1) {
         qCritical() << "OTPPairingManager: RAND_bytes failed for saltBytes";
-        emit pairingCompleted(nullptr, "Cryptographic random generation failed");
+        emit pairingCompleted(false, "Cryptographic random generation failed");
         return;
     }
     QString saltStr = saltBytes.toHex();
