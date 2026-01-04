@@ -195,9 +195,20 @@ NvPairingManager::signMessage(const QByteArray& message)
     EVP_DigestSignUpdate(ctx, reinterpret_cast<unsigned char*>(const_cast<char*>(message.data())), message.length());
 
     size_t signatureLength = 0;
-    EVP_DigestSignFinal(ctx, NULL, &signatureLength);
+    if (EVP_DigestSignFinal(ctx, NULL, &signatureLength) != 1) {
+        EVP_MD_CTX_destroy(ctx);
+        qCritical() << "EVP_DigestSignFinal failed to get signature length";
+        return QByteArray();
+    }
 
-    QByteArray signature((int)signatureLength, 0);
+    // Bounds check to prevent integer overflow on 64-bit systems
+    if (signatureLength > INT_MAX) {
+        EVP_MD_CTX_destroy(ctx);
+        qCritical() << "Signature length too large:" << signatureLength;
+        return QByteArray();
+    }
+
+    QByteArray signature(static_cast<int>(signatureLength), 0);
     EVP_DigestSignFinal(ctx, reinterpret_cast<unsigned char*>(signature.data()), &signatureLength);
 
     EVP_MD_CTX_destroy(ctx);

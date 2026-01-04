@@ -68,8 +68,10 @@ void IdentityManager::createCredentials(QSettings& settings)
     X509_set_pubkey(cert, pk);
 
     X509_NAME* name = X509_get_subject_name(cert);
+    // Use static const to avoid const_cast on string literal
+    static const unsigned char clientName[] = "NVIDIA GameStream Client";
     X509_NAME_add_entry_by_txt(name, "CN", MBSTRING_ASC,
-                               reinterpret_cast<unsigned char *>(const_cast<char*>("NVIDIA GameStream Client")),
+                               clientName,
                                -1, -1, 0);
     X509_set_issuer_name(cert, name);
 

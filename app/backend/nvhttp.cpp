@@ -103,7 +103,14 @@ NvHTTP::parseQuad(QString quad)
     ret.reserve(parts.length());
     for (int i = 0; i < parts.length(); i++)
     {
-        ret.append(parts.at(i).toInt());
+        bool ok;
+        int value = parts.at(i).toInt(&ok);
+        if (!ok) {
+            qWarning() << "Invalid version component:" << parts.at(i) << "in" << quad;
+            // Use 0 as fallback for invalid components
+            value = 0;
+        }
+        ret.append(value);
     }
 
     return ret;
