@@ -52,11 +52,16 @@ QuickMenuManager::QuickMenuManager(QObject *parent)
 
 QuickMenuManager::~QuickMenuManager()
 {
+    // Close windows before deleting to ensure proper cleanup of pending events
     if (m_quickView) {
+        m_quickView->close();
         delete m_quickView;
+        m_quickView = nullptr;
     }
     if (m_ToastWindow) {
+        m_ToastWindow->close();
         delete m_ToastWindow;
+        m_ToastWindow = nullptr;
     }
 }
 

@@ -14,9 +14,13 @@ Item {
     property real dpadSize: buttonSize * 2.5
     property real stickSize: buttonSize * 2
 
+    // Theme colors - can be customized for different themes
+    property color triggerColor: "#804020"  // Brown/rust color for LT/RT buttons
+
     signal buttonPressed(int button)
     signal buttonReleased(int button)
     signal stickMoved(int stick, real x, real y)
+    signal triggerMoved(int trigger, real value)  // 0=LT, 1=RT, value 0.0-1.0
 
     // Button constants matching Limelight.h
     readonly property int btnA: 0x1000
@@ -31,6 +35,10 @@ Item {
     readonly property int btnBack: 0x0020
     readonly property int btnLB: 0x0100
     readonly property int btnRB: 0x0200
+
+    // Trigger indices
+    readonly property int triggerLT: 0
+    readonly property int triggerRT: 1
 
     // Left side - D-Pad
     Item {
@@ -84,6 +92,7 @@ Item {
 
     // Left shoulder button (LB)
     VirtualButton {
+        id: lbButton
         width: buttonSize * 1.5
         height: buttonSize * 0.8
         anchors.left: parent.left
@@ -91,6 +100,19 @@ Item {
         anchors.margins: 20
         text: "LB"
         onPressedChanged: pressed ? buttonPressed(btnLB) : buttonReleased(btnLB)
+    }
+
+    // Left trigger button (LT)
+    VirtualButton {
+        width: buttonSize * 1.5
+        height: buttonSize * 0.8
+        anchors.left: parent.left
+        anchors.top: lbButton.bottom
+        anchors.leftMargin: 20
+        anchors.topMargin: 5
+        text: "LT"
+        color: triggerColor
+        onPressedChanged: triggerMoved(triggerLT, pressed ? 1.0 : 0.0)
     }
 
     // Right side - Face buttons (A, B, X, Y)
@@ -149,6 +171,7 @@ Item {
 
     // Right shoulder button (RB)
     VirtualButton {
+        id: rbButton
         width: buttonSize * 1.5
         height: buttonSize * 0.8
         anchors.right: parent.right
@@ -156,6 +179,19 @@ Item {
         anchors.margins: 20
         text: "RB"
         onPressedChanged: pressed ? buttonPressed(btnRB) : buttonReleased(btnRB)
+    }
+
+    // Right trigger button (RT)
+    VirtualButton {
+        width: buttonSize * 1.5
+        height: buttonSize * 0.8
+        anchors.right: parent.right
+        anchors.top: rbButton.bottom
+        anchors.rightMargin: 20
+        anchors.topMargin: 5
+        text: "RT"
+        color: triggerColor
+        onPressedChanged: triggerMoved(triggerRT, pressed ? 1.0 : 0.0)
     }
 
     // Center buttons (Start and Back)

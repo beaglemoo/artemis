@@ -20,6 +20,7 @@ class QuickMenuManager;
 class ServerCommandManager;
 class ClipboardManager;
 class VirtualControllerManager;
+class NvHTTP;
 
 class SupportedVideoFormatList : public QList<int>
 {
@@ -129,6 +130,11 @@ public:
         if (m_VirtualControllerManager) {
             delete m_VirtualControllerManager;
             m_VirtualControllerManager = nullptr;
+        }
+        // Clean up the shared HTTP client (must be deleted AFTER managers that use it)
+        if (m_HttpClient) {
+            delete m_HttpClient;
+            m_HttpClient = nullptr;
         }
     };
 
@@ -321,6 +327,7 @@ private:
     ServerCommandManager* m_ServerCommandManager;
     ClipboardManager* m_ClipboardManager;
     VirtualControllerManager* m_VirtualControllerManager;
+    NvHTTP* m_HttpClient;  // Shared HTTP client for managers - must be cleaned up
 
     static CONNECTION_LISTENER_CALLBACKS k_ConnCallbacks;
     static Session* s_ActiveSession;

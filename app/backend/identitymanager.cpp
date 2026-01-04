@@ -205,8 +205,13 @@ IdentityManager::getUniqueId()
         }
         else {
             // Generate a new unique ID in base 16
+            // RAND_bytes returns 1 on success, 0 or -1 on failure
             uint64_t uid;
-            RAND_bytes(reinterpret_cast<unsigned char*>(&uid), sizeof(uid));
+            if (RAND_bytes(reinterpret_cast<unsigned char*>(&uid), sizeof(uid)) != 1) {
+                qWarning() << "IdentityManager: RAND_bytes failed for unique ID, using fallback";
+                // Fallback to timestamp-based ID if RNG fails
+                uid = static_cast<uint64_t>(QDateTime::currentMSecsSinceEpoch());
+            }
             m_CachedUniqueId = QString::number(uid, 16);
 
             qInfo() << "Generated new unique ID:" << m_CachedUniqueId;

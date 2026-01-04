@@ -79,40 +79,77 @@ CONNECTION_LISTENER_CALLBACKS Session::k_ConnCallbacks = {
 Session* Session::s_ActiveSession;
 QSemaphore Session::s_ActiveSessionSemaphore(1);
 
+/**
+ * Session Lifecycle and Semaphore Safety Guarantee:
+ *
+ * The callbacks below (clStageStarting, clStageFailed, clConnectionTerminated, etc.)
+ * use a pattern where we:
+ *   1. Acquire the semaphore
+ *   2. Copy s_ActiveSession to a local pointer
+ *   3. Release the semaphore
+ *   4. Use the local pointer
+ *
+ * This pattern is SAFE because of the following lifecycle guarantee:
+ * - s_ActiveSession is set in Session::exec() AFTER acquiring the semaphore
+ * - s_ActiveSession is only set to nullptr in DeferredSessionCleanupTask::run()
+ *   which runs AFTER all callbacks have completed (Limelight streaming stopped)
+ * - The Session object itself is deleted by Qt's parent-child mechanism,
+ *   which only happens after readyForDeletion is emitted (after cleanup)
+ *
+ * Therefore, if we read a non-null s_ActiveSession while holding the semaphore,
+ * the Session object is guaranteed to remain valid until after all callbacks
+ * have finished executing.
+ */
+
 void Session::clStageStarting(int stage)
 {
     // We know this is called on the same thread as LiStartConnection()
     // which happens to be the main thread, so it's cool to interact
     // with the GUI in these callbacks.
-    if (!s_ActiveSession) {
+    // Use semaphore to prevent TOCTOU race on s_ActiveSession
+    s_ActiveSessionSemaphore.acquire();
+    Session* session = s_ActiveSession;
+    s_ActiveSessionSemaphore.release();
+
+    if (!session) {
         return;
     }
-    emit s_ActiveSession->stageStarting(QString::fromLocal8Bit(LiGetStageName(stage)));
+    emit session->stageStarting(QString::fromLocal8Bit(LiGetStageName(stage)));
 }
 
 void Session::clStageFailed(int stage, int errorCode)
 {
-    if (!s_ActiveSession) {
+    // Use semaphore to prevent TOCTOU race on s_ActiveSession
+    s_ActiveSessionSemaphore.acquire();
+    Session* session = s_ActiveSession;
+    s_ActiveSessionSemaphore.release();
+
+    if (!session) {
         return;
     }
 
     // Perform the port test now, while we're on the async connection thread and not blocking the UI.
     unsigned int portFlags = LiGetPortFlagsFromStage(stage);
-    s_ActiveSession->m_PortTestResults = LiTestClientConnectivity(CONN_TEST_SERVER, 443, portFlags);
+    session->m_PortTestResults = LiTestClientConnectivity(CONN_TEST_SERVER, 443, portFlags);
 
     char failingPorts[128];
     LiStringifyPortFlags(portFlags, ", ", failingPorts, sizeof(failingPorts));
-    emit s_ActiveSession->stageFailed(QString::fromLocal8Bit(LiGetStageName(stage)), errorCode, QString(failingPorts));
+    emit session->stageFailed(QString::fromLocal8Bit(LiGetStageName(stage)), errorCode, QString(failingPorts));
 }
 
 void Session::clConnectionTerminated(int errorCode)
 {
-    if (!s_ActiveSession) {
+    // Use semaphore to prevent TOCTOU race on s_ActiveSession
+    s_ActiveSessionSemaphore.acquire();
+    Session* session = s_ActiveSession;
+    s_ActiveSessionSemaphore.release();
+
+    if (!session) {
         return;
     }
 
     unsigned int portFlags = LiGetPortFlagsFromTerminationErrorCode(errorCode);
-    s_ActiveSession->m_PortTestResults = LiTestClientConnectivity(CONN_TEST_SERVER, 443, portFlags);
+    session->m_PortTestResults = LiTestClientConnectivity(CONN_TEST_SERVER, 443, portFlags);
 
     // Display the termination dialog if this was not intended
     switch (errorCode) {
@@ -120,40 +157,40 @@ void Session::clConnectionTerminated(int errorCode)
         break;
 
     case ML_ERROR_NO_VIDEO_TRAFFIC:
-        s_ActiveSession->m_UnexpectedTermination = true;
+        session->m_UnexpectedTermination = true;
 
         char ports[128];
         SDL_assert(portFlags != 0);
         LiStringifyPortFlags(portFlags, ", ", ports, sizeof(ports));
-        emit s_ActiveSession->displayLaunchError(tr("No video received from host.") + "\n\n"+
-                                                 tr("Check your firewall and port forwarding rules for port(s): %1").arg(ports));
+        emit session->displayLaunchError(tr("No video received from host.") + "\n\n"+
+                                         tr("Check your firewall and port forwarding rules for port(s): %1").arg(ports));
         break;
 
     case ML_ERROR_NO_VIDEO_FRAME:
-        s_ActiveSession->m_UnexpectedTermination = true;
-        emit s_ActiveSession->displayLaunchError(tr("Your network connection isn't performing well. Reduce your video bitrate setting or try a faster connection."));
+        session->m_UnexpectedTermination = true;
+        emit session->displayLaunchError(tr("Your network connection isn't performing well. Reduce your video bitrate setting or try a faster connection."));
         break;
 
     case ML_ERROR_PROTECTED_CONTENT:
     case ML_ERROR_UNEXPECTED_EARLY_TERMINATION:
-        s_ActiveSession->m_UnexpectedTermination = true;
-        emit s_ActiveSession->displayLaunchError(tr("Something went wrong on your host PC when starting the stream.") + "\n\n" +
-                                                 tr("Make sure you don't have any DRM-protected content open on your host PC. You can also try restarting your host PC."));
+        session->m_UnexpectedTermination = true;
+        emit session->displayLaunchError(tr("Something went wrong on your host PC when starting the stream.") + "\n\n" +
+                                         tr("Make sure you don't have any DRM-protected content open on your host PC. You can also try restarting your host PC."));
         break;
 
     case ML_ERROR_FRAME_CONVERSION:
-        s_ActiveSession->m_UnexpectedTermination = true;
-        emit s_ActiveSession->displayLaunchError(tr("The host PC reported a fatal video encoding error.") + "\n\n" +
-                                                 tr("Try disabling HDR mode, changing the streaming resolution, or changing your host PC's display resolution."));
+        session->m_UnexpectedTermination = true;
+        emit session->displayLaunchError(tr("The host PC reported a fatal video encoding error.") + "\n\n" +
+                                         tr("Try disabling HDR mode, changing the streaming resolution, or changing your host PC's display resolution."));
         break;
 
     default:
-        s_ActiveSession->m_UnexpectedTermination = true;
+        session->m_UnexpectedTermination = true;
 
         // We'll assume large errors are hex values
         bool hexError = qAbs(errorCode) > 1000;
-        emit s_ActiveSession->displayLaunchError(tr("Connection terminated") + "\n\n" +
-                                                 tr("Error code: %1").arg(errorCode, hexError ? 8 : 0, hexError ? 16 : 10, QChar('0')));
+        emit session->displayLaunchError(tr("Connection terminated") + "\n\n" +
+                                         tr("Error code: %1").arg(errorCode, hexError ? 8 : 0, hexError ? 16 : 10, QChar('0')));
         break;
     }
 
@@ -195,7 +232,12 @@ void Session::clRumble(unsigned short controllerNumber, unsigned short lowFreqMo
 
 void Session::clConnectionStatusUpdate(int connectionStatus)
 {
-    if (!s_ActiveSession) {
+    // Use semaphore to prevent TOCTOU race on s_ActiveSession
+    s_ActiveSessionSemaphore.acquire();
+    Session* session = s_ActiveSession;
+    s_ActiveSessionSemaphore.release();
+
+    if (!session) {
         return;
     }
 
@@ -203,11 +245,11 @@ void Session::clConnectionStatusUpdate(int connectionStatus)
                 "Connection status update: %d",
                 connectionStatus);
 
-    if (!s_ActiveSession->m_Preferences->connectionWarnings) {
+    if (!session->m_Preferences->connectionWarnings) {
         return;
     }
 
-    if (s_ActiveSession->m_MouseEmulationRefCount > 0) {
+    if (session->m_MouseEmulationRefCount > 0) {
         // Don't display the overlay if mouse emulation is already using it
         return;
     }
@@ -215,32 +257,37 @@ void Session::clConnectionStatusUpdate(int connectionStatus)
     switch (connectionStatus)
     {
     case CONN_STATUS_POOR:
-        s_ActiveSession->m_OverlayManager.updateOverlayText(Overlay::OverlayStatusUpdate,
-                                                            s_ActiveSession->m_StreamConfig.bitrate > 5000 ?
-                                                                "Slow connection to PC\nReduce your bitrate" : "Poor connection to PC");
-        s_ActiveSession->m_OverlayManager.setOverlayState(Overlay::OverlayStatusUpdate, true);
+        session->m_OverlayManager.updateOverlayText(Overlay::OverlayStatusUpdate,
+                                                    session->m_StreamConfig.bitrate > 5000 ?
+                                                        "Slow connection to PC\nReduce your bitrate" : "Poor connection to PC");
+        session->m_OverlayManager.setOverlayState(Overlay::OverlayStatusUpdate, true);
         break;
     case CONN_STATUS_OKAY:
-        s_ActiveSession->m_OverlayManager.setOverlayState(Overlay::OverlayStatusUpdate, false);
+        session->m_OverlayManager.setOverlayState(Overlay::OverlayStatusUpdate, false);
         break;
     }
 }
 
 void Session::clSetHdrMode(bool enabled)
 {
-    if (!s_ActiveSession) {
+    // Use semaphore to prevent TOCTOU race on s_ActiveSession
+    s_ActiveSessionSemaphore.acquire();
+    Session* session = s_ActiveSession;
+    s_ActiveSessionSemaphore.release();
+
+    if (!session) {
         return;
     }
 
     // If we're in the process of recreating our decoder when we get
     // this callback, we'll drop it. The main thread will make the
     // callback when it finishes creating the new decoder.
-    if (SDL_AtomicTryLock(&s_ActiveSession->m_DecoderLock)) {
-        IVideoDecoder* decoder = s_ActiveSession->m_VideoDecoder;
+    if (SDL_AtomicTryLock(&session->m_DecoderLock)) {
+        IVideoDecoder* decoder = session->m_VideoDecoder;
         if (decoder != nullptr) {
             decoder->setHdrMode(enabled);
         }
-        SDL_AtomicUnlock(&s_ActiveSession->m_DecoderLock);
+        SDL_AtomicUnlock(&session->m_DecoderLock);
     }
 }
 
@@ -647,7 +694,8 @@ Session::Session(NvComputer* computer, NvApp& app, StreamingPreferences *prefere
     m_QuickMenuManager(new QuickMenuManager()),
     m_ServerCommandManager(new ServerCommandManager()),
     m_ClipboardManager(ClipboardManager::instance()),
-    m_VirtualControllerManager(new VirtualControllerManager())
+    m_VirtualControllerManager(new VirtualControllerManager()),
+    m_HttpClient(nullptr)
 {
 }
 
@@ -779,11 +827,19 @@ bool Session::initialize()
                 "Video bitrate: %d kbps",
                 m_StreamConfig.bitrate);
 
-    RAND_bytes(reinterpret_cast<unsigned char*>(m_StreamConfig.remoteInputAesKey),
-               sizeof(m_StreamConfig.remoteInputAesKey));
+    // Generate random AES key for remote input encryption
+    // RAND_bytes returns 1 on success, 0 or -1 on failure
+    if (RAND_bytes(reinterpret_cast<unsigned char*>(m_StreamConfig.remoteInputAesKey),
+                   sizeof(m_StreamConfig.remoteInputAesKey)) != 1) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                     "RAND_bytes failed for remoteInputAesKey - OpenSSL RNG error");
+    }
 
     // Only the first 4 bytes are populated in the RI key IV
-    RAND_bytes(reinterpret_cast<unsigned char*>(m_StreamConfig.remoteInputAesIv), 4);
+    if (RAND_bytes(reinterpret_cast<unsigned char*>(m_StreamConfig.remoteInputAesIv), 4) != 1) {
+        SDL_LogError(SDL_LOG_CATEGORY_APPLICATION,
+                     "RAND_bytes failed for remoteInputAesIv - OpenSSL RNG error");
+    }
 
     switch (m_Preferences->audioConfig)
     {
@@ -1054,11 +1110,12 @@ bool Session::initialize()
     // Initialize ServerCommandManager and ClipboardManager after everything is configured
     if (m_ServerCommandManager && m_QuickMenuManager && m_ClipboardManager) {
         // Set up the ServerCommandManager with the computer and HTTP client
-        NvHTTP* httpClient = new NvHTTP(m_Computer);
-        m_ServerCommandManager->setConnection(m_Computer, httpClient);
-        
+        // Store pointer in m_HttpClient for proper cleanup in destructor
+        m_HttpClient = new NvHTTP(m_Computer);
+        m_ServerCommandManager->setConnection(m_Computer, m_HttpClient);
+
         // Set up the ClipboardManager with the same HTTP client
-        m_ClipboardManager->setConnection(m_Computer, httpClient);
+        m_ClipboardManager->setConnection(m_Computer, m_HttpClient);
         
         // Connect the ServerCommandManager to the QuickMenuManager
         m_QuickMenuManager->setServerCommandManager(m_ServerCommandManager);

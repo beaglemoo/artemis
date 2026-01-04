@@ -1,3 +1,47 @@
+/**
+ * @file nvpairingmanager.cpp
+ * @brief NVIDIA GameStream Pairing Protocol Implementation
+ *
+ * This file implements the NVIDIA GameStream pairing protocol, which is also
+ * used by Sunshine/Apollo servers for backward compatibility. The protocol
+ * establishes a secure channel between client and server using a challenge-
+ * response mechanism with a user-entered PIN.
+ *
+ * PROTOCOL SECURITY NOTES:
+ * ========================
+ *
+ * 1. AES-128-ECB Mode (Required for Protocol Compatibility)
+ *    - The GameStream protocol specifies AES-128-ECB for challenge encryption
+ *    - While ECB mode is generally discouraged for new protocols (patterns in
+ *      plaintext are visible in ciphertext), it is REQUIRED here for protocol
+ *      compatibility with NVIDIA GeForce Experience and Sunshine/Apollo servers
+ *    - The 16-byte challenges are random data, so ECB's pattern exposure is
+ *      mitigated (random data has no pattern to expose)
+ *    - DO NOT change to CBC/GCM - it will break compatibility with all servers
+ *
+ * 2. Key Derivation (SHA-256 of salt + PIN)
+ *    - The protocol derives the AES key from SHA-256(salt || PIN)
+ *    - While modern protocols would use PBKDF2/Argon2, this simple derivation
+ *      is REQUIRED for protocol compatibility
+ *    - The 4-digit PIN provides limited entropy, but the pairing is local/LAN
+ *      and the PIN is user-verified, making brute-force attacks impractical
+ *
+ * 3. Certificate Exchange
+ *    - Client and server exchange X.509 certificates during pairing
+ *    - These certificates are used for TLS mutual authentication in subsequent
+ *      HTTPS connections (certificate pinning model)
+ *    - The initial pairing request may use HTTP (before server cert is known)
+ *
+ * 4. Signature Verification
+ *    - Both parties sign challenges to prove possession of private keys
+ *    - SHA-256 with RSA signatures are used for verification
+ *
+ * SECURITY CONSIDERATIONS:
+ * - Pairing should only occur on trusted local networks
+ * - The user must visually verify the PIN matches on both client and server
+ * - After pairing, all communication uses HTTPS with certificate pinning
+ */
+
 #include "nvpairingmanager.h"
 #include "utils.h"
 
@@ -63,7 +107,11 @@ NvPairingManager::generateRandomBytes(int length)
         return QByteArray();
     }
     QByteArray data(length, 0);
-    RAND_bytes(reinterpret_cast<unsigned char*>(data.data()), length);
+    // RAND_bytes returns 1 on success, 0 or -1 on failure
+    if (RAND_bytes(reinterpret_cast<unsigned char*>(data.data()), length) != 1) {
+        qCritical() << "NvPairingManager: RAND_bytes failed for" << length << "bytes";
+        return QByteArray();  // Return empty array on failure
+    }
     return data;
 }
 

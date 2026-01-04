@@ -16,7 +16,7 @@
 #include <QtEndian>
 #include <QNetworkProxy>
 #include <QSysInfo>
-#include <QRandomGenerator>
+#include <openssl/rand.h>  // Use cryptographically secure RNG
 
 #define FAST_FAIL_TIMEOUT_MS 2000
 #define REQUEST_TIMEOUT_MS 5000
@@ -505,23 +505,38 @@ NvHTTP::getXmlArray(QString xml, QString tagName)
 
 void NvHTTP::handleSslErrors(QNetworkReply* reply, const QList<QSslError>& errors)
 {
-    bool ignoreErrors = true;
+    // Security Model: We use certificate pinning for server authentication.
+    // When we first pair with a server, we store its certificate. All subsequent
+    // HTTPS connections validate that the server presents this same certificate.
+    // This is secure because:
+    // 1. We reject connections if the certificate doesn't match our pinned cert
+    // 2. The pairing process establishes trust (user-approved PIN/OTP exchange)
+    // 3. We only ignore SSL errors for our explicitly trusted (pinned) certificate
 
     if (m_ServerCert.isNull()) {
-        // We should never make an HTTPS request without a cert
-        Q_ASSERT(!m_ServerCert.isNull());
+        // We should never make an HTTPS request without a pinned cert
+        qWarning() << "NvHTTP: HTTPS request without pinned server certificate - rejecting";
         return;
     }
 
+    bool canIgnoreAllErrors = true;
     for (const QSslError& error : errors) {
         if (m_ServerCert != error.certificate()) {
-            ignoreErrors = false;
-            break;
+            // Certificate mismatch - this is a security concern
+            qWarning() << "NvHTTP: SSL error for UNKNOWN certificate - rejecting:"
+                       << error.errorString();
+            canIgnoreAllErrors = false;
+        } else {
+            // Error is for our pinned certificate - log but allow
+            qDebug() << "NvHTTP: Ignoring SSL error for pinned certificate:"
+                     << error.errorString();
         }
     }
 
-    if (ignoreErrors) {
+    if (canIgnoreAllErrors) {
         reply->ignoreSslErrors(errors);
+    } else {
+        qWarning() << "NvHTTP: Not ignoring SSL errors due to certificate mismatch";
     }
 }
 
@@ -570,21 +585,29 @@ NvHTTP::openConnection(QUrl baseUrl,
     url.setPath("/" + command);
 
     // Use a machine-specific UID to match Apollo server expectations
-    // Generate a uniqueid based on hostname + timestamp for uniqueness
+    // Generate a uniqueid based on hostname + cryptographically secure random bytes
     static QString machineUniqueId;
     if (machineUniqueId.isEmpty()) {
         QString hostname = QSysInfo::machineHostName();
         if (hostname.isEmpty()) hostname = "artemis";
         // Take first 8 chars of hostname and pad with random hex
         QString hostPart = hostname.left(8).toUpper();
-        while (hostPart.length() < 8) {
-            hostPart += QString("%1").arg(QRandomGenerator::global()->bounded(16), 1, 16).toUpper();
+        // Generate random bytes to pad hostname if needed
+        // RAND_bytes returns 1 on success, 0 or -1 on failure
+        if (hostPart.length() < 8) {
+            unsigned char padBytes[4];  // Max 4 bytes needed (8 hex chars)
+            if (RAND_bytes(padBytes, sizeof(padBytes)) != 1) {
+                qWarning() << "NvHTTP: RAND_bytes failed for hostname padding";
+            }
+            QString padHex = QByteArray(reinterpret_cast<char*>(padBytes), sizeof(padBytes)).toHex().toUpper();
+            hostPart += padHex.left(8 - hostPart.length());
         }
-        // Add 8 random hex chars
-        QString randomPart;
-        for (int i = 0; i < 8; i++) {
-            randomPart += QString("%1").arg(QRandomGenerator::global()->bounded(16), 1, 16).toUpper();
+        // Add 8 random hex chars using cryptographically secure RAND_bytes
+        unsigned char randomBytes[4];  // 4 bytes = 8 hex chars
+        if (RAND_bytes(randomBytes, sizeof(randomBytes)) != 1) {
+            qWarning() << "NvHTTP: RAND_bytes failed for unique ID generation";
         }
+        QString randomPart = QByteArray(reinterpret_cast<char*>(randomBytes), sizeof(randomBytes)).toHex().toUpper();
         machineUniqueId = hostPart + randomPart;
     }
     url.setQuery("uniqueid=" + machineUniqueId + "&uuid=" +

@@ -139,6 +139,8 @@ void VirtualControllerManager::createOverlay()
                     this, SLOT(onButtonReleased(int)));
             connect(m_rootItem, SIGNAL(stickMoved(int, qreal, qreal)),
                     this, SLOT(onStickMoved(int, qreal, qreal)));
+            connect(m_rootItem, SIGNAL(triggerMoved(int, qreal)),
+                    this, SLOT(onTriggerMoved(int, qreal)));
 
             // Set the controller to visible state
             m_rootItem->setProperty("showController", true);

@@ -12,11 +12,11 @@
 #include <QThreadPool>
 #include <QCoreApplication>
 #include <QCryptographicHash>
-#include <QRandomGenerator>
 #include <QRegularExpression>
 
 #include <random>
 #include <openssl/evp.h>
+#include <openssl/rand.h>  // Use cryptographically secure RNG
 #include <openssl/pem.h>
 #include <openssl/bio.h>
 #include <openssl/x509.h>
@@ -796,9 +796,12 @@ qCritical() << "Failed to sign message";
 qDebug() << "PendingOTPPairingTask: Generated AES key from salt+PIN";
             
             // Step 1: Generate random challenge and encrypt it with AES key
+            // Use cryptographically secure RAND_bytes instead of QRandomGenerator
+            // RAND_bytes returns 1 on success, 0 or -1 on failure
             QByteArray randomChallenge(16, 0);
-            for (int i = 0; i < 16; i++) {
-                randomChallenge[i] = QRandomGenerator::global()->bounded(256);
+            if (RAND_bytes(reinterpret_cast<unsigned char*>(randomChallenge.data()), 16) != 1) {
+                qCritical() << "PendingOTPPairingTask: RAND_bytes failed for randomChallenge";
+                return false;
             }
             
             // Encrypt the challenge with AES-128-ECB (matches Android's encryptAes)
@@ -837,9 +840,12 @@ qDebug() << "PendingOTPPairingTask: Generated AES key from salt+PIN";
             
             // Step 2: Send server challenge response
             // Generate a 16-byte random client secret like Android does
+            // Use cryptographically secure RAND_bytes instead of QRandomGenerator
+            // RAND_bytes returns 1 on success, 0 or -1 on failure
             QByteArray clientSecret(16, 0);
-            for (int i = 0; i < 16; i++) {
-                clientSecret[i] = QRandomGenerator::global()->bounded(256);
+            if (RAND_bytes(reinterpret_cast<unsigned char*>(clientSecret.data()), 16) != 1) {
+                qCritical() << "PendingOTPPairingTask: RAND_bytes failed for clientSecret";
+                return false;
             }
             
             // Create challenge response hash following the Android implementation
@@ -958,24 +964,23 @@ qDebug() << "PendingOTPPairingTask: Generated AES key from salt+PIN";
             NvHTTP http(m_Computer);
             
             qDebug() << "PendingOTPPairingTask: Starting Apollo OTP pairing";
-            qDebug() << "PendingOTPPairingTask: PIN from user:" << m_Pin;
-            qDebug() << "PendingOTPPairingTask: Passphrase from user:" << m_Passphrase;
-            
-            // Generate a 16-byte salt
+            // SECURITY: Do not log PIN, passphrase, OTP hash, or salt - these are sensitive credentials
+
+            // Generate a 16-byte salt using cryptographically secure RAND_bytes
+            // RAND_bytes returns 1 on success, 0 or -1 on failure
             QByteArray saltBytes(16, 0);
-            for (int i = 0; i < 16; i++) {
-                saltBytes[i] = QRandomGenerator::global()->bounded(256);
+            if (RAND_bytes(reinterpret_cast<unsigned char*>(saltBytes.data()), 16) != 1) {
+                qCritical() << "PendingOTPPairingTask: RAND_bytes failed for saltBytes";
+                return false;
             }
             QString saltStr = saltBytes.toHex();
-            
+
             // Generate the OTP hash
             QString plainText = m_Pin + saltStr + m_Passphrase;
             QCryptographicHash hash(QCryptographicHash::Sha256);
             hash.addData(plainText.toUtf8());
             QString otpHash = hash.result().toHex().toUpper();
-            
-            qDebug() << "PendingOTPPairingTask: Generated OTP hash:" << otpHash;
-            qDebug() << "PendingOTPPairingTask: Using salt:" << saltStr;
+            // SECURITY: Do not log OTP hash or salt - these are sensitive credentials
             
             // Build the pairing parameters - use consistent device name
             QString deviceName = QSysInfo::machineHostName();

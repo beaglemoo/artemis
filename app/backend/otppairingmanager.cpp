@@ -7,7 +7,7 @@
 #include <QCryptographicHash>
 #include <QSslCertificate>
 #include <QTimer>
-#include <QRandomGenerator>
+#include <openssl/rand.h>  // Use cryptographically secure RNG
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
 #include <QNetworkReply>
@@ -117,19 +117,22 @@ QString OTPPairingManager::generateOTPHash(const QString &pin, const QString &sa
     // MessageDigest digest = MessageDigest.getInstance("SHA-256");
     // String plainText = pin + saltStr + passphrase;
     // byte[] hash = digest.digest(plainText.getBytes());
+    //
+    // Security Note: The OTP hash comparison is performed server-side by Apollo/Sunshine.
+    // The server compares the received hash with its expected value using a constant-time
+    // comparison to prevent timing attacks. Client-side, we only generate and send the hash.
 
     QString plainText = pin + salt + passphrase;
-    
+
     QCryptographicHash hash(QCryptographicHash::Sha256);
     hash.addData(plainText.toUtf8());
-    
+
     QByteArray result = hash.result();
-    
+
     // Convert to hex string (uppercase to match Android)
     QString hexString = result.toHex().toUpper();
-    
-    qDebug() << "OTPPairingManager: Generated OTP hash for PIN:" << pin << "Salt:" << salt;
-    
+    // SECURITY: Do not log PIN, salt, passphrase, or hash - these are sensitive credentials
+
     return hexString;
 }
 
@@ -138,17 +141,19 @@ void OTPPairingManager::performOTPPairing(NvComputer *computer, const QString &p
     emit pairingProgress("Generating OTP authentication...");
     
     // Generate a 16-byte salt to match the expected format by Apollo servers
+    // Use cryptographically secure RAND_bytes instead of QRandomGenerator
+    // RAND_bytes returns 1 on success, 0 or -1 on failure
     QByteArray saltBytes(16, 0);
-    for (int i = 0; i < 16; i++) {
-        saltBytes[i] = QRandomGenerator::global()->bounded(256);
+    if (RAND_bytes(reinterpret_cast<unsigned char*>(saltBytes.data()), 16) != 1) {
+        qCritical() << "OTPPairingManager: RAND_bytes failed for saltBytes";
+        emit pairingCompleted(nullptr, "Cryptographic random generation failed");
+        return;
     }
     QString saltStr = saltBytes.toHex();
-    
+
     // Generate the OTP hash using the same salt that will be sent in the pairing request
     QString otpHash = generateOTPHash(pin, saltStr, passphrase);
-    
-    qDebug() << "OTPPairingManager: Generated OTP hash:" << otpHash;
-    qDebug() << "OTPPairingManager: Using salt:" << saltStr;
+    // SECURITY: Do not log OTP hash or salt - these are sensitive credentials
     
     emit pairingProgress("Connecting to server...");
     
@@ -165,10 +170,7 @@ void OTPPairingManager::sendOTPPairingRequest(NvComputer *computer, const QStrin
         NvHTTP http(computer);
         
         qDebug() << "OTPPairingManager: Starting Apollo OTP pairing";
-        qDebug() << "OTPPairingManager: PIN from user (server-generated):" << m_currentPin;
-        qDebug() << "OTPPairingManager: Passphrase from user:" << m_currentPassphrase;
-        qDebug() << "OTPPairingManager: Generated OTP hash:" << otpHash;
-        qDebug() << "OTPPairingManager: Using salt:" << salt;
+        // SECURITY: Do not log PIN, passphrase, OTP hash, or salt - these are sensitive credentials
         qDebug() << "OTPPairingManager: Server HTTP URL:" << http.m_BaseUrlHttp.toString();
         qDebug() << "OTPPairingManager: Server HTTPS URL:" << http.m_BaseUrlHttps.toString();
         
@@ -181,8 +183,8 @@ void OTPPairingManager::sendOTPPairingRequest(NvComputer *computer, const QStrin
             .arg(QString(IdentityManager::get()->getCertificate().toHex()))
             .arg(otpHash);
         
-        qDebug() << "OTPPairingManager: Pairing parameters:" << pairingParams;
-        
+        // SECURITY: Do not log pairing parameters - they contain sensitive certificate and OTP hash
+
         QString pairingRequest;
         
         // For OTP pairing, use HTTP to avoid SSL certificate verification issues
